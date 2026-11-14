@@ -197,10 +197,12 @@ export default function App() {
       try {
         const personalWorkspace = await ensurePersonalWorkspace(user);
         setWorkspace(personalWorkspace);
-        if (!user.displayName?.trim()) {
-          setProfileName("");
+        const needsOnboarding = !user.displayName?.trim() || localStorage.getItem("dayflow-onboarding-pending") === "1";
+        if (needsOnboarding) {
+          setProfileName(user.displayName || "");
           setWorkspaceName(personalWorkspace.name || "Personal workspace");
           setOnboardingOpen(true);
+          localStorage.removeItem("dayflow-onboarding-pending");
         }
       } catch (error) {
         console.error("Workspace setup failed:", error);
@@ -274,11 +276,13 @@ export default function App() {
     setAuthBusy(true); setAuthError("");
     try {
       if (mode === "signup") {
+        localStorage.setItem("dayflow-onboarding-pending", "1");
         const credential = await createUserWithEmailAndPassword(auth, email, password);
         if (fullName.trim()) await updateProfile(credential.user, { displayName: fullName.trim() });
       } else await signInWithEmailAndPassword(auth, email, password);
       setAuthOpen(false); notify("You're signed in — tasks will sync.");
     } catch (e) {
+      localStorage.removeItem("dayflow-onboarding-pending");
       setAuthError(e.code === "auth/email-already-in-use" ? "That email already has an account. Try signing in." : e.code === "auth/invalid-credential" ? "Email or password doesn't look right." : e.message);
     } finally { setAuthBusy(false); }
   }
