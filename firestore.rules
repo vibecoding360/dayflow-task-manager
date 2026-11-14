@@ -49,7 +49,8 @@ service cloud.firestore {
           && request.resource.data.date is string;
         allow update, delete: if ownsUser(userId);
       }
-\n      match /tasks/{taskId} {
+
+      match /tasks/{taskId} {
         allow read, create, update, delete: if ownsUser(userId);
       }
     }
