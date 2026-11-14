@@ -465,7 +465,7 @@ export default function App() {
           <div className="stat-card"><div className="stat-top"><span>Tasks this week</span><span className="stat-icon pale-blue"><CalendarDays size={17} /></span></div><div className="stat-number">{tasks.filter((t) => t.date >= dateKey(weekStart) && t.date <= dateKey(addDays(weekStart, 6))).length}</div><div className="stat-foot">Across your calendar</div></div>
           <div className="stat-card"><div className="stat-top"><span>All completed</span><span className="stat-icon pale-green"><CheckCircle2 size={17} /></span></div><div className="stat-number">{completedCount}</div><div className="stat-foot">Little wins add up</div></div>
           <div className="stat-card"><div className="stat-top"><span>Coming up</span><span className="stat-icon pale-amber"><Clock3 size={17} /></span></div><div className="stat-number">{upcoming.length}</div><div className="stat-foot">Your next few priorities</div></div>
-        </section>
+        </section>}
 
         {view === "timer" ? <StudyTimer tasks={tasks} onStartTask={()=>setModal({date:dateKey(today)})}/> : <section className="planner-layout">
           <div className="calendar-card">
