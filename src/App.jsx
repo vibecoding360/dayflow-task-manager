@@ -363,7 +363,7 @@ export default function App() {
 
   if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{onboardingOpen && authUser && <OnboardingModal name={profileName} workspaceName={workspaceName} setName={setProfileName} setWorkspaceName={setWorkspaceName} onSubmit={completeOnboarding} busy={profileBusy} error={profileError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
 
-  return <div className="app-shell">
+  return <div className={"app-shell " + (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "theme-dark" : "")}>
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
       <div className="brand"><div className="brand-icon"><Sparkles size={19} strokeWidth={2.4} /></div><span>dayflow<span className="brand-period">.</span></span></div>
       <div className="workspace-label">WORKSPACE</div>
