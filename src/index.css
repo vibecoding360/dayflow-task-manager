@@ -744,3 +744,159 @@ h1, h2, h3, p { margin-top: 0; }
   .feature-card:hover { transform: translateY(-4px); box-shadow: 0 22px 50px rgba(0,0,0,.25); }
   .hero-primary:hover,.marketing-nav-cta:hover { transform: translateY(-2px); }
 }
+
+
+/* Mobile-first polish for the dark landing page */
+@media (max-width: 640px) {
+  .marketing-shell { overflow-x: clip; }
+  .marketing-nav {
+    width: 100%;
+    height: 66px;
+    padding: 0 15px;
+    gap: 8px;
+  }
+  .marketing-brand { gap: 8px; font-size: 19px; flex: 0 0 auto; }
+  .marketing-brand-icon { width: 31px; height: 31px; border-radius: 10px; }
+  .marketing-menu-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin: 0 0 0 auto;
+    color: #e6e2ff;
+    border: 1px solid var(--m-line);
+    border-radius: 9px;
+    background: #1b1d30;
+  }
+  .marketing-links {
+    display: none;
+    position: absolute;
+    top: 58px;
+    left: 12px;
+    right: 12px;
+    z-index: 20;
+    padding: 17px;
+    border: 1px solid var(--m-line);
+    border-radius: 13px;
+    background: #202239;
+    box-shadow: 0 18px 42px rgba(0,0,0,.4);
+  }
+  .marketing-links-open { display: grid; gap: 0; }
+  .marketing-links a { padding: 12px 5px; color: #e2dfff; font-size: 13px; }
+  .marketing-links a + a { border-top: 1px solid var(--m-line); }
+  .marketing-nav-actions { flex: 0 0 auto; gap: 8px; }
+  .marketing-google-login { width: 33px; height: 33px; border-radius: 9px; }
+  .marketing-google-login svg { width: 17px; height: 17px; }
+  .marketing-login { padding: 7px 2px; font-size: 11px; white-space: nowrap; }
+  .marketing-nav-cta { min-height: 34px; padding: 0 10px; border-radius: 9px; font-size: 10px; white-space: nowrap; }
+  .marketing-nav-cta svg { width: 13px; }
+  .marketing-hero {
+    min-height: 0;
+    padding: 52px 20px 35px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 28px;
+  }
+  .hero-copy { padding: 0; }
+  .hero-badge { padding: 7px 10px; font-size: 9px; }
+  .hero-copy h1 {
+    margin: 21px 0 14px;
+    max-width: 540px;
+    font-size: clamp(43px, 12vw, 58px);
+    line-height: 1.03;
+    letter-spacing: -3.4px;
+  }
+  .hero-description { max-width: 480px; margin-bottom: 20px; font-size: 13px; line-height: 1.75; }
+  .hero-actions { gap: 13px; align-items: center; }
+  .hero-primary { min-height: 46px; padding: 0 15px; font-size: 11px; }
+  .hero-secondary { font-size: 10px; }
+  .hero-trust { margin-top: 22px; font-size: 9px; }
+  .hero-visual { width: 100%; max-width: 560px; margin: 0 auto; padding: 8px 0 24px; }
+  .preview-window { border-radius: 13px; transform: none; }
+  .preview-top { height: 34px; padding: 0 10px; font-size: 7px; }
+  .preview-content { min-height: 0; grid-template-columns: 78px minmax(0,1fr); }
+  .preview-sidebar { padding: 12px 5px; font-size: 7px; }
+  .preview-sidebar>div:not(.preview-logo) { gap: 5px; padding: 8px 4px; }
+  .preview-logo { gap: 4px; margin: 0 0 12px 3px; font-size: 10px; }
+  .preview-logo svg { width: 12px; }
+  .preview-side-label { margin-top: 12px; font-size: 6px; }
+  .preview-main { padding: 14px 9px; }
+  .preview-greeting { font-size: 6px; letter-spacing: .8px; }
+  .preview-heading { margin: 6px 0 11px; font-size: 11px; }
+  .preview-stats { gap: 4px; }
+  .preview-stats>div { min-width: 0; padding: 7px 5px; }
+  .preview-stats small { font-size: 6px; }
+  .preview-stats b { margin-top: 3px; font-size: 13px; }
+  .preview-calendar { margin-top: 10px; padding: 8px 5px; }
+  .preview-month { font-size: 8px; }
+  .preview-days { margin-top: 9px; }
+  .preview-days>div { gap: 5px; }
+  .preview-days small { font-size: 5px; }
+  .preview-days b { width: 18px; height: 18px; font-size: 7px; }
+  .preview-events { gap: 3px; margin-top: 10px; }
+  .preview-event { padding: 6px 2px; font-size: 5px; white-space: normal; }
+  .floating-note { right: -3px; bottom: 0; gap: 7px; padding: 8px 10px; border-radius: 9px; }
+  .floating-note>span { width: 23px; height: 23px; }
+  .floating-note b { font-size: 8px; }
+  .floating-note small { font-size: 7px; }
+  .marketing-strip { min-height: 48px; gap: 9px; padding: 0 10px; font-size: 5px; letter-spacing: .55px; }
+  .marketing-strip i { width: 3px; height: 3px; flex: 0 0 3px; }
+  .marketing-section,.how-section,.pricing-section { padding: 58px 20px; }
+  .section-intro { margin-bottom: 28px; }
+  .section-intro h2,.how-heading h2,.pricing-section h2 { margin: 12px 0; font-size: 34px; letter-spacing: -1.5px; }
+  .section-intro p,.pricing-section>div>p { font-size: 12px; }
+  .feature-grid { grid-template-columns: minmax(0,1fr); gap: 11px; }
+  .feature-large { grid-column: auto; }
+  .feature-card { min-height: 0; padding: 20px; }
+  .feature-icon { width: 37px; height: 37px; margin-bottom: 17px; }
+  .mini-week { gap: 5px; margin-top: 18px; padding: 10px 6px; }
+  .feature-sync,.feature-progress { margin-top: 18px; }
+  .how-section { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .how-steps { grid-template-columns: minmax(0,1fr); gap: 17px; }
+  .how-steps article { padding-top: 12px; }
+  .how-steps article>b { margin-bottom: 10px; }
+  .pricing-section { grid-template-columns: minmax(0,1fr); gap: 20px; }
+  .pricing-card { padding: 22px; }
+  .pricing-card ul { gap: 11px; margin: 18px 0; }
+  .final-cta {
+    margin: 0 15px 35px;
+    padding: 27px 22px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+    border-radius: 14px;
+  }
+  .final-cta h2 { font-size: 29px; }
+  .final-cta button { width: 100%; justify-content: center; min-height: 44px; }
+  .marketing-footer { padding: 20px 18px 26px; flex-wrap: wrap; gap: 12px; }
+}
+@media (max-width: 390px) {
+  .marketing-nav { padding: 0 10px; gap: 5px; }
+  .marketing-brand { gap: 6px; font-size: 17px; }
+  .marketing-brand-icon { width: 28px; height: 28px; }
+  .marketing-nav-actions { gap: 5px; }
+  .marketing-google-login { width: 30px; height: 30px; }
+  .marketing-login { font-size: 10px; }
+  .marketing-nav-cta { min-height: 32px; padding: 0 8px; font-size: 9px; }
+  .marketing-menu-toggle { width: 30px; height: 30px; }
+  .marketing-hero { padding-left: 16px; padding-right: 16px; }
+  .hero-copy h1 { font-size: 43px; letter-spacing: -2.8px; }
+  .hero-actions { align-items: flex-start; flex-direction: column; }
+  .preview-content { grid-template-columns: 68px minmax(0,1fr); }
+  .preview-sidebar { font-size: 6px; }
+  .preview-main { padding: 12px 6px; }
+  .preview-heading { font-size: 10px; }
+  .preview-stats small { font-size: 5px; }
+  .preview-stats b { font-size: 12px; }
+  .marketing-strip { gap: 6px; font-size: 4.5px; }
+}
+@media (min-width: 641px) and (max-width: 900px) {
+  .marketing-nav { padding: 0 24px; }
+  .marketing-hero { min-height: 0; padding: 65px 24px 55px; gap: 25px; }
+  .hero-copy h1 { font-size: clamp(46px,6.4vw,62px); letter-spacing: -3.5px; }
+  .hero-visual { padding-left: 0; }
+  .preview-content { grid-template-columns: 100px minmax(0,1fr); }
+  .preview-main { padding: 17px 12px; }
+  .marketing-section,.how-section,.pricing-section { padding: 78px 24px; }
+}
