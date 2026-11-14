@@ -11,7 +11,8 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile
 } from "firebase/auth";
-import { auth, db, firebaseReady, ensurePersonalWorkspace } from "./firebase";
+import { auth, db, storage, firebaseReady, ensurePersonalWorkspace } from "./firebase";
+import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 
 const CATEGORIES = ["Study", "Work", "Personal", "Health"];
 const PRIORITIES = ["Low", "Medium", "High"];
@@ -109,6 +110,23 @@ function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSub
   </div>;
 }
 
+
+function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,saving,error,theme,setTheme,notifications,setNotifications}) {
+ const [name,setName]=useState(user?.displayName||""); const [space,setSpace]=useState(workspace?.name||"Personal workspace");
+ const [photoBusy,setPhotoBusy]=useState(false); const [photoError,setPhotoError]=useState("");
+ async function photoChange(e){const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){setPhotoError("Choose an image file.");return;}if(file.size>3*1024*1024){setPhotoError("Image must be smaller than 3 MB.");return;}setPhotoBusy(true);setPhotoError("");try{await onPhotoUpload(file);}catch{setPhotoError("Upload failed. Check Firebase Storage setup and rules.");}finally{setPhotoBusy(false);e.target.value="";}}
+ return <div className="modal-backdrop settings-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><form className="settings-modal" onSubmit={e=>{e.preventDefault();onSave(name,space);}}>
+ <div className="modal-top"><div><span className="eyebrow">PREFERENCES</span><h2>Settings</h2></div><IconButton label="Close settings" onClick={onClose}><X size={19}/></IconButton></div>
+ <section className="settings-section"><h3>Profile</h3><div className="settings-profile"><div className="settings-avatar">{user?.photoURL?<img src={user.photoURL} alt="Profile"/>:(name.trim()[0]||user?.email?.[0]||"D").toUpperCase()}</div><div><label className="settings-upload">{photoBusy?"Uploading…":"Change photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={photoChange} disabled={photoBusy}/></label><small>JPG, PNG or WebP · Max 3 MB</small></div></div>{photoError&&<p className="form-error">{photoError}</p>}
+ <label className="field-label">Display name</label><input className="field-input" value={name} onChange={e=>setName(e.target.value)} required minLength="2" maxLength="60"/>
+ <label className="field-label">Email address</label><input className="field-input" value={user?.email||""} disabled/></section>
+ <section className="settings-section"><h3>Workspace</h3><label className="field-label">Workspace name</label><input className="field-input" value={space} onChange={e=>setSpace(e.target.value)} required minLength="2" maxLength="60"/></section>
+ <section className="settings-section"><h3>Appearance</h3><div className="settings-choice-row"><div><b>Color theme</b><small>Choose how DayFlow looks on this device.</small></div><select className="field-input settings-select" value={theme} onChange={e=>setTheme(e.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div></section>
+ <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Allow DayFlow to show reminder prompts.</small></span><input type="checkbox" checked={notifications} onChange={e=>setNotifications(e.target.checked)}/></label></section>
+ {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><div className="actions-spacer"/><button className="btn-primary" disabled={saving}>{saving?"Saving…":"Save settings"} <Check size={16}/></button></div>
+ </form></div>;
+}
+
 function EmptyState({ onAdd }) {
   return <div className="day-empty"><div className="empty-illustration"><CalendarDays size={22} /></div><h3>A day with room to breathe</h3><p>Nothing scheduled here yet. Add a task and give your day a little shape.</p><button className="btn-primary" onClick={onAdd}><Plus size={16} /> Add a task</button></div>;
 }
@@ -183,6 +201,11 @@ export default function App() {
   const [workspaceName, setWorkspaceName] = useState("Personal workspace");
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [settingsBusy,setSettingsBusy]=useState(false);
+  const [settingsError,setSettingsError]=useState("");
+  const [theme,setTheme]=useState(()=>localStorage.getItem("dayflow-theme")||"light");
+  const [notifications,setNotifications]=useState(()=>localStorage.getItem("dayflow-notifications")!=="off");
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -224,6 +247,9 @@ export default function App() {
   useEffect(() => {
     if (!authUser) localStorage.setItem("dayflow-tasks", JSON.stringify(tasks));
   }, [tasks, authUser]);
+
+  useEffect(()=>{localStorage.setItem("dayflow-theme",theme);},[theme]);
+  useEffect(()=>{localStorage.setItem("dayflow-notifications",notifications?"on":"off");},[notifications]);
 
   function notify(message) {
     setToast(message);
@@ -311,6 +337,22 @@ export default function App() {
     } finally { setProfileBusy(false); }
   }
 
+
+  async function saveSettings(name,space){
+    if(!authUser||!firebaseReady)return;
+    if(name.trim().length<2||space.trim().length<2){setSettingsError("Enter a display name and workspace name.");return;}
+    setSettingsBusy(true);setSettingsError("");
+    try{await updateProfile(authUser,{displayName:name.trim()});await updateDoc(doc(db,"users",authUser.uid),{displayName:name.trim(),updatedAt:serverTimestamp()});await updateDoc(doc(db,"workspaces",authUser.uid),{name:space.trim(),updatedAt:serverTimestamp()});setAuthUser(auth.currentUser);setWorkspace(cur=>({...cur,name:space.trim()}));setSettingsOpen(false);notify("Settings saved.");}
+    catch(e){console.error("Settings save failed",e);setSettingsError("Couldn't save settings. Please try again.");}finally{setSettingsBusy(false);}
+  }
+  async function uploadProfilePhoto(file){
+    if(!authUser||!storage)throw new Error("Storage unavailable");
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-").slice(-80);
+    const target=storageRef(storage,"profilePhotos/"+authUser.uid+"/"+Date.now()+"-"+safeName);
+    await uploadBytes(target,file,{contentType:file.type});const photoURL=await getDownloadURL(target);
+    await updateProfile(authUser,{photoURL});await updateDoc(doc(db,"users",authUser.uid),{photoURL,updatedAt:serverTimestamp()});setAuthUser(auth.currentUser);notify("Profile photo updated.");
+  }
+
   function changeMonth(amount) { setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + amount, 1)); }
   function chooseDate(date) {
     setSelectedDate(date);
@@ -335,7 +377,7 @@ export default function App() {
       <div className="category-nav">{CATEGORIES.map((c) => <button key={c} onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }} className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}><span className={"category-dot " + COLORS[c]} />{c}<span className="category-total">{tasks.filter((t) => t.category === c).length}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>One thing at a time.</strong><p>Small steps make great days. Keep your focus on what matters.</p></div>
-        <div className="profile-row"><div className="avatar">{authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
+        <div className="profile-row"><div className="avatar">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? setSettingsOpen(true) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Settings" : "Sign in"}>{authUser ? <Settings2 size={17} /> : <LogIn size={17} />}</button></div>
       </div>
     </aside>
     {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
@@ -345,7 +387,7 @@ export default function App() {
         <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>Calendar</b></span></div>
         <div className="topbar-right">{workspaceError && <span className="workspace-warning" title={workspaceError}>Workspace setup issue</span>}<div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
           {authUser ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Sign out</button> : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")}><LogIn size={15} /> Sign in</button>}
-          <div className="top-avatar">{authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div>
+          <button className="top-avatar top-avatar-button" onClick={()=>authUser&&setSettingsOpen(true)} aria-label="Open settings">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</button>
         </div>
       </header>
 
@@ -404,6 +446,7 @@ export default function App() {
 
     {modal && <TaskModal initial={modal.task} date={modal.date || selectedDate} onClose={() => setModal(null)} onSave={saveTask} onDelete={removeTask} />}
     {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}
+    {settingsOpen && authUser && <SettingsModal user={authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
     {toast && <div className="toast"><CheckCircle2 size={17} />{toast}</div>}
   </div>;
 }
