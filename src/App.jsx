@@ -11,7 +11,7 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged
 } from "firebase/auth";
-import { auth, db, firebaseReady } from "./firebase";
+import { auth, db, firebaseReady, ensurePersonalWorkspace } from "./firebase";
 
 const CATEGORIES = ["Study", "Work", "Personal", "Health"];
 const PRIORITIES = ["Low", "Medium", "High"];
@@ -100,6 +100,8 @@ export default function App() {
   const [view, setView] = useState("month");
   const [modal, setModal] = useState(null);
   const [authUser, setAuthUser] = useState(null);
+  const [workspace, setWorkspace] = useState(null);
+  const [workspaceError, setWorkspaceError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -113,7 +115,19 @@ export default function App() {
       try { setTasks(JSON.parse(localStorage.getItem("dayflow-tasks") || "[]")); } catch { setTasks([]); }
       return;
     }
-    return onAuthStateChanged(auth, (user) => setAuthUser(user));
+    return onAuthStateChanged(auth, async (user) => {
+      setAuthUser(user);
+      setWorkspace(null);
+      setWorkspaceError("");
+      if (!user) return;
+      try {
+        const personalWorkspace = await ensurePersonalWorkspace(user);
+        setWorkspace(personalWorkspace);
+      } catch (error) {
+        console.error("Workspace setup failed:", error);
+        setWorkspaceError("Your account is signed in, but workspace setup needs attention.");
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -210,15 +224,15 @@ export default function App() {
       <div className="category-nav">{CATEGORIES.map((c) => <button key={c} onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }} className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}><span className={"category-dot " + COLORS[c]} />{c}<span className="category-total">{tasks.filter((t) => t.category === c).length}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>One thing at a time.</strong><p>Small steps make great days. Keep your focus on what matters.</p></div>
-        <div className="profile-row"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? authUser.email.split("@")[0] : "Your workspace"}</strong><span>{authUser ? "Synced account" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
+        <div className="profile-row"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
       </div>
     </aside>
     {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
 
     <main className="main-area">
       <header className="topbar">
-        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">Workspace <span>/</span> <b>Calendar</b></span></div>
-        <div className="topbar-right"><div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
+        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>Calendar</b></span></div>
+        <div className="topbar-right">{workspaceError && <span className="workspace-warning" title={workspaceError}>Workspace setup issue</span>}<div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
           {authUser ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Sign out</button> : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")}><LogIn size={15} /> Sign in</button>}
           <div className="top-avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div>
         </div>
