@@ -335,3 +335,107 @@ h1, h2, h3, p { margin-top: 0; }
   .month-arrows { gap: 0; }
   .calendar-legend { gap: 7px; }
 }
+
+
+/* Public SaaS landing page */
+.marketing-shell { min-height:100vh; overflow:hidden; color:#28283d; background:#fbfaf8; }
+.marketing-nav { height:82px; max-width:1240px; margin:auto; padding:0 34px; display:flex; align-items:center; justify-content:space-between; position:relative; z-index:5; }
+.marketing-brand { display:inline-flex; align-items:center; gap:10px; color:#29293e; text-decoration:none; font:800 22px "Manrope",sans-serif; letter-spacing:-1.2px; }
+.marketing-brand > span:last-child { color:#8172e9; margin-left:-10px; }
+.marketing-brand-icon { width:34px; height:34px; display:grid; place-items:center; color:white; border-radius:11px; background:linear-gradient(140deg,#9184f5,#6858d9); box-shadow:0 6px 15px #7566e933; }
+.marketing-links { display:flex; align-items:center; gap:37px; }
+.marketing-links a,.marketing-login { color:#77788b; text-decoration:none; font-size:12px; font-weight:600; }
+.marketing-links a:hover,.marketing-login:hover { color:#6d5fda; }
+.marketing-nav-actions { display:flex; align-items:center; gap:20px; }
+.marketing-login { border:0; background:transparent; }
+.marketing-nav-cta,.hero-primary,.pricing-card button { display:inline-flex; align-items:center; justify-content:center; gap:10px; border:0; border-radius:9px; color:white; background:linear-gradient(110deg,#8174ed,#6b5ddc); box-shadow:0 7px 18px #7467e32c; font-size:11px; font-weight:700; }
+.marketing-nav-cta { min-height:40px; padding:0 15px; }
+.marketing-menu-toggle { display:none; border:0; color:#585971; background:transparent; }
+.marketing-hero { max-width:1240px; min-height:590px; margin:auto; padding:84px 34px 76px; display:grid; grid-template-columns:.9fr 1.1fr; align-items:center; gap:38px; }
+.hero-copy { position:relative; z-index:2; padding-bottom:18px; }
+.hero-badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid #ebe8fb; border-radius:30px; color:#7971b4; background:#f7f5ff; font-size:10px; font-weight:700; }
+.hero-badge span { width:7px; height:7px; border-radius:50%; background:#6cc39b; box-shadow:0 0 0 4px #e5f5ed; }
+.hero-copy h1 { margin:25px 0 17px; color:#29293e; font:800 clamp(49px,6vw,76px)/1.04 "Manrope",sans-serif; letter-spacing:-4.8px; }
+.hero-copy h1 span,.section-intro h2 span,.how-heading h2 span,.pricing-section h2 span { color:#8173e8; }
+.hero-description { max-width:440px; margin-bottom:25px; color:#85869a; font-size:14px; line-height:1.9; }
+.hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:17px; }
+.hero-primary { min-height:49px; padding:0 19px; font-size:12px; }
+.hero-secondary { display:inline-flex; align-items:center; gap:9px; padding:10px 0; border:0; color:#74758a; background:transparent; font-size:11px; font-weight:700; }
+.demo-play { width:25px; height:25px; display:grid; place-items:center; border-radius:50%; color:#786ce0; background:#efedff; font-size:9px; }
+.hero-trust { display:flex; align-items:center; gap:12px; margin-top:35px; color:#a1a1ae; font-size:10px; }
+.trust-avatars { display:flex; padding-left:3px; }
+.trust-avatars span { width:25px; height:25px; display:grid; place-items:center; margin-left:-4px; border:2px solid #fbfaf8; border-radius:50%; color:#756bd0; background:#eae7ff; font-size:9px; font-weight:700; }
+.trust-avatars span:nth-child(2){background:#e3f2eb;color:#4e9a7b}.trust-avatars span:nth-child(3){background:#ffeedf;color:#b7824e}.trust-avatars span:nth-child(4){background:#e9eaf2;color:#73758b}
+.hero-visual { position:relative; min-width:0; padding:28px 0 36px 15px; }
+.visual-glow { position:absolute; inset:8% 0 3% 9%; border-radius:45%; background:radial-gradient(ellipse,#e8e4ff 0%,#f4f0ff 43%,transparent 72%); filter:blur(12px); }
+.preview-window { position:relative; overflow:hidden; border:1px solid #ebeaf2; border-radius:16px; background:#fff; box-shadow:0 30px 80px #46406c1b,0 4px 15px #3c3a5c0c; transform:rotate(1.2deg); }
+.preview-top { height:43px; display:flex; align-items:center; justify-content:space-between; padding:0 15px; border-bottom:1px solid #f0eff5; color:#b1b0bd; font-size:8px; font-weight:700; letter-spacing:1px; }
+.preview-dots { display:flex; gap:5px; }.preview-dots i { width:6px;height:6px;border-radius:50%;background:#e6e4ed; }.preview-dots i:first-child{background:#f0b7b6}
+.preview-user { width:23px;height:23px;display:grid;place-items:center;border-radius:50%;color:#6d60d8;background:#efedff;font-size:9px; }
+.preview-content { min-height:345px; display:grid; grid-template-columns:130px 1fr; }
+.preview-sidebar { padding:17px 11px; border-right:1px solid #f0eff5; color:#9b9cad; font-size:9px; }
+.preview-sidebar>div:not(.preview-logo) { display:flex;align-items:center;gap:8px;padding:10px 7px; }
+.preview-logo { display:flex;align-items:center;gap:6px;margin:0 0 17px 5px;color:#4c4b65;font:800 12px "Manrope",sans-serif; }
+.preview-logo svg {color:#8173e8}
+.preview-sidebar .preview-nav-active {border-radius:7px;color:#6e61d8;background:#f1efff;font-weight:700}
+.preview-side-label {margin-top:19px;color:#b3b2bf;font-size:7px;font-weight:700;letter-spacing:1px}
+.preview-dot {width:6px;height:6px;border-radius:50%}.dot-purple{background:#9688ee}.dot-blue{background:#6ba9e9}.dot-orange{background:#e8b568}
+.preview-main { min-width:0; padding:22px 21px; }
+.preview-greeting { color:#aaa9b7;font-size:7px;font-weight:700;letter-spacing:1.2px; }
+.preview-heading { margin:7px 0 17px;color:#414158;font:750 15px "Manrope",sans-serif;letter-spacing:-.4px; }
+.preview-stats {display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.preview-stats>div {padding:10px 9px;border:1px solid #f0eff5;border-radius:7px;background:#fdfdff}
+.preview-stats small,.preview-stats b {display:block}.preview-stats small{color:#a5a5b3;font-size:7px}.preview-stats b{margin-top:5px;color:#45455d;font:800 17px "Manrope",sans-serif}
+.preview-calendar {margin-top:16px;padding:12px;border:1px solid #efeff5;border-radius:8px}
+.preview-month {display:flex;justify-content:space-between;color:#56566c;font-size:9px}.preview-month span{color:#a4a2b5}
+.preview-days {display:grid;grid-template-columns:repeat(7,1fr);margin-top:13px}
+.preview-days>div {display:grid;justify-items:center;gap:7px;color:#9696a7}
+.preview-days small {font-size:6px;font-weight:700}.preview-days b {width:21px;height:21px;display:grid;place-items:center;border-radius:50%;font-size:8px;font-weight:500}
+.preview-days .preview-today {color:white;background:#7d70e6;font-weight:700}.preview-days i{width:4px;height:4px;border-radius:50%;background:#9385eb}
+.preview-events {display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:14px}
+.preview-event {padding:7px 5px;border-radius:4px;font-size:7px;font-weight:600;white-space:nowrap;text-align:center}
+.event-purple{color:#7467d3;background:#f0edff}.event-blue{color:#4f91ce;background:#edf6ff}.event-orange{color:#b68743;background:#fff5e7}
+.floating-note {position:absolute;right:-15px;bottom:4px;display:flex;align-items:center;gap:10px;padding:12px 16px;border:1px solid #efedf5;border-radius:11px;background:#fff;box-shadow:0 12px 30px #33304b18}
+.floating-note>span {width:27px;height:27px;display:grid;place-items:center;border-radius:8px;color:#399b76;background:#e8f7ef}
+.floating-note b,.floating-note small {display:block}.floating-note b{color:#55566d;font-size:9px}.floating-note small{margin-top:4px;color:#a1a1af;font-size:8px}
+.marketing-strip {min-height:68px;display:flex;align-items:center;justify-content:center;gap:38px;border-top:1px solid #efedf2;border-bottom:1px solid #efedf2;background:#fff;color:#a0a0ae;font-size:8px;font-weight:700;letter-spacing:1.6px}
+.marketing-strip i {width:4px;height:4px;border-radius:50%;background:#9a8dec}
+.marketing-section,.how-section,.pricing-section {max-width:1160px;margin:auto;padding:112px 34px}
+.section-intro {max-width:520px;margin-bottom:42px}
+.marketing-kicker {color:#8b7fe0;font-size:9px;font-weight:800;letter-spacing:1.5px}
+.section-intro h2,.how-heading h2,.pricing-section h2 {margin:15px 0;color:#2e2e43;font:800 43px/1.12 "Manrope",sans-serif;letter-spacing:-2px}
+.section-intro p,.pricing-section>div>p {max-width:420px;color:#9292a1;font-size:12px;line-height:1.8}
+.feature-grid {display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:15px}
+.feature-card {min-height:260px;padding:25px;border:1px solid #efedf3;border-radius:14px;background:#fff;box-shadow:0 8px 28px #35334e06}
+.feature-large {background:linear-gradient(145deg,#f6f4ff,#fff 78%)}
+.feature-icon {width:42px;height:42px;display:grid;place-items:center;border-radius:12px;margin-bottom:26px}
+.feature-lilac{color:#786be0;background:#eae7ff}.feature-blue{color:#589bd7;background:#e9f4ff}.feature-peach{color:#c38d50;background:#fff1df}
+.feature-card h3,.how-steps h3 {margin:0 0 9px;color:#44445b;font:750 15px "Manrope",sans-serif}
+.feature-card p,.how-steps p {margin:0;color:#9696a5;font-size:10px;line-height:1.8}
+.mini-week {display:flex;justify-content:space-between;margin-top:24px;padding:13px 10px;border:1px solid #eeecf7;border-radius:8px;background:#fff}
+.mini-week span {display:grid;justify-items:center;gap:6px;color:#a2a1b0;font-size:7px}.mini-week b{font-size:10px;color:#68687c}
+.mini-week .mini-week-active b {width:22px;height:22px;display:grid;place-items:center;border-radius:50%;color:#fff;background:#8173e8}
+.feature-sync {display:flex;align-items:center;gap:7px;margin-top:26px;padding:11px;border:1px solid #e9f2ee;border-radius:8px;color:#639b83;background:#f7fcf9;font-size:8px}.feature-sync svg:last-child{margin-left:auto}
+.feature-progress {display:flex;align-items:center;gap:12px;margin-top:28px}.feature-progress>span{height:7px;flex:1;overflow:hidden;border-radius:10px;background:#f0eef8}.feature-progress>span b{display:block;width:68%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#a99cf3,#7466df)}.feature-progress strong{color:#7569dc;font:800 15px "Manrope",sans-serif}
+.how-section {display:grid;grid-template-columns:.8fr 1.2fr;gap:75px;border-top:1px solid #efedf2}
+.how-heading h2 {font-size:40px}
+.how-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-content:center}
+.how-steps article {padding-top:9px;border-top:1px solid #e8e5f3}
+.how-steps article>b {display:block;margin-bottom:31px;color:#8b7ee4;font:800 11px "Manrope",sans-serif}
+.how-steps h3 {font-size:12px}
+.pricing-section {display:grid;grid-template-columns:1fr 390px;gap:80px;align-items:center;border-top:1px solid #efedf2}
+.pricing-card {padding:29px;border:1px solid #e9e5fb;border-radius:15px;background:#fff;box-shadow:0 20px 55px #554e8310}
+.pricing-label {color:#897ce4;font-size:8px;font-weight:800;letter-spacing:1.4px}
+.pricing-price {margin:13px 0 7px;color:#303047;font:800 35px "Manrope",sans-serif;letter-spacing:-1.5px}
+.pricing-price small {color:#9c9baa;font:500 10px "DM Sans",sans-serif;letter-spacing:0}
+.pricing-card>p {color:#9695a4;font-size:10px;line-height:1.7}
+.pricing-card ul {display:grid;gap:13px;margin:22px 0;padding:0;list-style:none}
+.pricing-card li {display:flex;align-items:center;gap:9px;color:#66677c;font-size:10px}.pricing-card li svg{color:#5aae88}
+.pricing-card button {width:100%;min-height:43px}.pricing-foot {display:block;margin-top:13px;color:#aaa9b6;text-align:center;font-size:8px;line-height:1.5}
+.final-cta {max-width:1160px;margin:0 auto 65px;padding:48px 54px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-radius:17px;background:linear-gradient(115deg,#f0edff,#f8f5ff 55%,#f1f7ff)}
+.final-cta h2 {margin:12px 0 0;color:#33334a;font:800 34px/1.15 "Manrope",sans-serif;letter-spacing:-1.5px}
+.final-cta button {display:flex;align-items:center;gap:10px;padding:14px 18px;border:0;border-radius:9px;color:#fff;background:#7568df;font-size:10px;font-weight:700}
+.marketing-footer {max-width:1240px;margin:auto;padding:25px 34px 32px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #efedf2;color:#a3a2af;font-size:9px}
+.marketing-footer .marketing-brand {font-size:17px}.marketing-footer .marketing-brand-icon{width:28px;height:28px}
+@media(max-width:900px){.marketing-hero{grid-template-columns:1fr;padding-top:65px}.hero-copy{max-width:600px}.hero-visual{max-width:650px;width:100%;margin:auto}.feature-grid{grid-template-columns:1fr 1fr}.feature-large{grid-column:span 2}.how-section{grid-template-columns:1fr;gap:25px}.pricing-section{grid-template-columns:1fr 350px;gap:35px}}
+@media(max-width:640px){.marketing-nav{height:68px;padding:0 17px}.marketing-menu-toggle{display:block;margin-left:auto;margin-right:10px}.marketing-links{display:none;position:absolute;top:62px;left:12px;right:12px;padding:17px;border:1px solid #efedf4;border-radius:11px;background:#fff;box-shadow:0 15px 30px #29283b12}.marketing-links-open{display:grid;gap:17px}.marketing-nav-actions{gap:10px}.marketing-login{font-size:10px}.marketing-nav-cta{min-height:35px;padding:0 10px;font-size:9px}.marketing-brand{font-size:19px}.marketing-brand-icon{width:30px;height:30px}.marketing-hero{padding:54px 19px 47px;gap:25px}.hero-copy h1{font-size:52px;letter-spacing:-3.5px}.hero-description{font-size:12px}.hero-actions{gap:8px}.hero-primary{min-height:44px;padding:0 13px;font-size:10px}.hero-secondary{font-size:10px}.hero-visual{padding:15px 0 25px}.preview-content{grid-template-columns:94px 1fr;min-height:275px}.preview-sidebar{padding:12px 6px;font-size:8px}.preview-main{padding:15px 10px}.preview-heading{font-size:12px}.preview-stats{gap:4px}.preview-stats>div{padding:7px 5px}.preview-stats small{font-size:6px}.preview-stats b{font-size:14px}.preview-calendar{padding:8px;margin-top:10px}.preview-event{font-size:6px;padding:6px 2px}.floating-note{right:-4px}.marketing-strip{gap:12px;min-height:55px;font-size:6px;letter-spacing:.8px}.marketing-section,.how-section,.pricing-section{padding:73px 20px}.section-intro h2,.how-heading h2,.pricing-section h2{font-size:35px}.feature-grid{grid-template-columns:1fr}.feature-large{grid-column:auto}.feature-card{min-height:220px}.how-steps{grid-template-columns:1fr;gap:18px}.how-steps article>b{margin-bottom:12px}.pricing-section{grid-template-columns:1fr;gap:22px}.pricing-card{padding:23px}.final-cta{margin:0 15px 40px;padding:30px 23px;align-items:flex-start;flex-direction:column}.final-cta h2{font-size:30px}.marketing-footer{padding:22px 18px;flex-wrap:wrap;gap:14px}.marketing-footer>span:nth-child(2){display:none}}
