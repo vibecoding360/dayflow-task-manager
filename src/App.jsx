@@ -133,7 +133,7 @@ function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,onRequestRem
  </form></div>;
 }
 
-function StudyTimer({onStartTask,tasks}) {
+function StudyTimer({onStartTask,tasks,user}) {
  const [hours,setHours]=useState(()=>Number(localStorage.getItem("dayflow-study-hours")||1));
  const [minutes,setMinutes]=useState(()=>Number(localStorage.getItem("dayflow-study-minutes")||0));
  const [remaining,setRemaining]=useState(()=>Number(localStorage.getItem("dayflow-study-remaining")||3600));
@@ -141,9 +141,23 @@ function StudyTimer({onStartTask,tasks}) {
  const [label,setLabel]=useState("Focused study session");
  const [sessions,setSessions]=useState(()=>Number(localStorage.getItem("dayflow-study-sessions")||0));
  const [total,setTotal]=useState(()=>Number(localStorage.getItem("dayflow-study-total")||0));
+ const [saveError,setSaveError]=useState("");
  const duration=Math.max(60,Math.min(43200,hours*3600+minutes*60));
  useEffect(()=>{localStorage.setItem("dayflow-study-hours",hours);localStorage.setItem("dayflow-study-minutes",minutes);},[hours,minutes]);
- useEffect(()=>{if(!running)return;const id=setInterval(()=>setRemaining(v=>{if(v<=1){setRunning(false);setSessions(s=>{localStorage.setItem("dayflow-study-sessions",s+1);return s+1;});setTotal(t=>{localStorage.setItem("dayflow-study-total",t+Math.round(duration/60));return t+Math.round(duration/60);});if("Notification"in window&&Notification.permission==="granted")new Notification("Study session complete",{body:"Your custom timer has finished."});return 0;}return v-1;}),1000);return()=>clearInterval(id);},[running,duration]);
+ async function completeSession(){
+   const record={title:label.trim().slice(0,100)||"Focused study session",durationSeconds:duration,durationMinutes:Math.round(duration/60),completedAt:serverTimestamp(),date:dateKey(new Date()),createdAt:serverTimestamp()};
+   if(user?.uid&&firebaseReady){
+     try{await addDoc(collection(db,"users",user.uid,"studySessions"),record);setSaveError("");}
+     catch(error){console.error("Study session save failed:",error);setSaveError("Session finished, but cloud saving failed. Check your Firestore rules and connection.");}
+   } else {
+     setSaveError("");
+     const nextSessions=sessions+1,nextTotal=total+Math.round(duration/60);
+     localStorage.setItem("dayflow-study-sessions",nextSessions);localStorage.setItem("dayflow-study-total",nextTotal);
+     setSessions(nextSessions);setTotal(nextTotal);
+   }
+   if("Notification"in window&&Notification.permission==="granted")new Notification("Study session complete",{body:"Your custom timer has finished."});
+ }
+ useEffect(()=>{if(!running)return;const id=setInterval(()=>setRemaining(v=>{if(v<=1){setRunning(false);void completeSession();localStorage.setItem("dayflow-study-remaining","0");return 0;}const next=v-1;localStorage.setItem("dayflow-study-remaining",next);return next;}),1000);return()=>clearInterval(id);},[running,duration,user?.uid,label]);
  const hh=Math.floor(remaining/3600),mm=Math.floor(remaining%3600/60),ss=remaining%60,display=[hh,mm,ss].map(v=>String(v).padStart(2,"0")).join(":");
  const weekStart=addDays(new Date(),-((new Date().getDay()+6)%7));
  const weekTasks=tasks.filter(t=>t.date>=dateKey(weekStart)&&t.date<=dateKey(addDays(weekStart,6)));
@@ -155,8 +169,8 @@ function StudyTimer({onStartTask,tasks}) {
  function reset(){setRunning(false);setRemaining(duration);localStorage.setItem("dayflow-study-remaining",duration);}
  return <section className="study-page"><div className="study-heading"><div><span className="eyebrow">STUDY SPACE</span><h1>Your time. <span className="heading-accent">Your pace.</span></h1><p>Choose any duration. No Pomodoro cycles or forced breaks.</p></div><span className="study-live"><i/> CUSTOM STUDY TIMER</span></div>
  <div className="study-layout"><div className="study-timer-card"><div className="study-session-label"><Timer size={17}/> FOCUS SESSION</div><input className="study-session-name" value={label} onChange={e=>setLabel(e.target.value)} aria-label="Session name"/><div className="study-clock">{display}</div><div className="study-clock-caption">{remaining===0?"Session complete":running?"Time remaining":"Ready when you are"}</div><div className="study-controls"><button className="btn-primary study-start" onClick={()=>{if(remaining===0)reset();setRunning(v=>!v);}}>{running?<Pause size={18}/>:<Play size={18}/>} {running?"Pause session":"Start studying"}</button><button className="study-reset" onClick={reset} aria-label="Reset timer"><RotateCcw size={17}/></button></div>
- <div className="study-duration"><span className="eyebrow">SET YOUR DURATION</span><div className="duration-fields"><label><input type="number" min="0" max="12" disabled={running} value={hours} onChange={e=>setHours(Math.min(12,Math.max(0,Number(e.target.value))))}/><small>Hours</small></label><b>:</b><label><input type="number" min="0" max="59" disabled={running} value={minutes} onChange={e=>setMinutes(Math.min(59,Math.max(0,Number(e.target.value))))}/><small>Minutes</small></label><button onClick={apply} disabled={running}>Apply</button></div><p>From 1 minute to 12 hours. Pause whenever you want.</p></div></div>
- <aside className="study-side"><div className="study-insight"><span className="eyebrow">YOUR STUDY TRACKER</span><div className="study-metric"><strong>{sessions}</strong><span>Sessions completed<br/>on this device</span></div><div className="study-metric"><strong>{Math.floor(total/60)}h {total%60}m</strong><span>Total focused time<br/>on this device</span></div><div className="study-metric"><strong>{completed}</strong><span>Completed Study tasks<br/>this week</span></div></div><div className="weekly-report"><span className="eyebrow">WEEKLY PRODUCTIVITY</span><div className="weekly-report-score"><strong>{completionRate}%</strong><span>tasks completed</span></div><div className="weekly-report-track"><i style={{width:completionRate+"%"}}/></div><div className="weekly-report-stats"><span><b>{completed}/{weekTasks.length}</b> completed</span><span><b>{studyDone}</b> study wins</span></div><div className="weekly-report-categories">{categorySummary.map(x=><span key={x.name}>{x.name}<b>{x.count}</b></span>)}</div></div><div className="study-templates"><span className="eyebrow">QUICK DURATIONS</span><div>{[15,25,45,60,90,120].map(n=><button key={n} onClick={()=>{setHours(Math.floor(n/60));setMinutes(n%60);setRemaining(n*60);setRunning(false);}}>{n<60?n+" min":n/60+" hr"}</button>)}</div><p>Presets are optional. Set any duration above.</p></div><button className="study-add-task" onClick={onStartTask}><Plus size={16}/> Plan a study task</button></aside></div></section>;
+ <div className="study-duration"><span className="eyebrow">SET YOUR DURATION</span><div className="duration-fields"><label><input type="number" min="0" max="12" disabled={running} value={hours} onChange={e=>setHours(Math.min(12,Math.max(0,Number(e.target.value))))}/><small>Hours</small></label><b>:</b><label><input type="number" min="0" max="59" disabled={running} value={minutes} onChange={e=>setMinutes(Math.min(59,Math.max(0,Number(e.target.value))))}/><small>Minutes</small></label><button onClick={apply} disabled={running}>Apply</button></div><p>From 1 minute to 12 hours. Pause whenever you want.</p></div>{saveError&&<p className="form-error">{saveError}</p>}</div>
+ <aside className="study-side"><div className="study-insight"><span className="eyebrow">YOUR STUDY TRACKER</span><div className="study-metric"><strong>{sessions}</strong><span>Sessions completed<br/>on this device</span></div><div className="study-metric"><strong>{Math.floor(total/60)}h {total%60}m</strong><span>Total focused time<br/>on this device</span></div><div className="study-metric"><strong>{completed}</strong><span>Completed Study tasks<br/>this week</span></div></div><div className="weekly-report"><span className="eyebrow">WEEKLY PRODUCTIVITY</span><div className="weekly-report-score"><strong>{completionRate}%</strong><span>tasks completed</span></div><div className="weekly-report-track"><i style={{width:completionRate+"%"}}/></div><div className="weekly-report-stats"><span><b>{completed}/{weekTasks.length}</b> completed</span><span><b>{studyDone}</b> study wins</span></div><div className="weekly-report-categories">{categorySummary.map(x=><span key={x.name}>{x.name}<b>{x.count}</b></span>)}</div></div><div className="study-templates"><span className="eyebrow">QUICK DURATIONS</span><div>{[15,25,45,60,90,120].map(n=><button key={n} onClick={()=>{setHours(Math.floor(n/60));setMinutes(n%60);setRemaining(n*60);localStorage.setItem("dayflow-study-remaining",n*60);setRunning(false);}}>{n<60?n+" min":n/60+" hr"}</button>)}</div><p>Presets are optional. Set any duration above.</p></div><button className="study-add-task" onClick={onStartTask}><Plus size={16}/> Plan a study task</button></aside></div></section>;
 }
 
 function EmptyState({ onAdd }) {
@@ -474,7 +488,7 @@ export default function App() {
           <div className="stat-card"><div className="stat-top"><span>Coming up</span><span className="stat-icon pale-amber"><Clock3 size={17} /></span></div><div className="stat-number">{upcoming.length}</div><div className="stat-foot">Your next few priorities</div></div>
         </section>}
 
-        {view === "timer" ? <StudyTimer tasks={tasks} onStartTask={()=>setModal({date:dateKey(today)})}/> : <section className="planner-layout">
+        {view === "timer" ? <StudyTimer tasks={tasks} user={authUser} onStartTask={()=>setModal({date:dateKey(today)})}/> : <section className="planner-layout">
           <div className="calendar-card">
             <div className="calendar-toolbar"><div><span className="eyebrow">YOUR SCHEDULE</span><h2>{view === "day" ? fullDay(selectedDate) : view === "week" ? "Week of " + selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : monthLabel(visibleMonth)}</h2></div>
               <div className="calendar-actions"><button className="today-button" onClick={() => { chooseDate(today); setView("month"); }}>Today</button><div className="view-switch">{["month", "week", "day"].map((v) => <button key={v} onClick={() => setView(v)} className={view === v ? "view-selected" : ""}>{v[0].toUpperCase() + v.slice(1)}</button>)}</div>
