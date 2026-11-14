@@ -34,7 +34,22 @@ service cloud.firestore {
       allow read, create, update: if ownsUser(userId);
       allow delete: if false;
 
-      match /tasks/{taskId} {
+
+      // Study history is private to the signed-in account.
+      match /studySessions/{sessionId} {
+        allow read: if ownsUser(userId);
+        allow create: if ownsUser(userId)
+          && request.resource.data.keys().hasOnly(["title", "durationSeconds", "durationMinutes", "completedAt", "date", "createdAt"])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 100
+          && request.resource.data.durationSeconds is int
+          && request.resource.data.durationSeconds >= 60
+          && request.resource.data.durationSeconds <= 43200
+          && request.resource.data.durationMinutes is int
+          && request.resource.data.date is string;
+        allow update, delete: if ownsUser(userId);
+      }
+\n      match /tasks/{taskId} {
         allow read, create, update, delete: if ownsUser(userId);
       }
     }
