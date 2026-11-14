@@ -114,7 +114,7 @@ function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSub
 }
 
 
-function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,saving,error,theme,setTheme,notifications,setNotifications}) {
+function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,onRequestReminderPermission,saving,error,theme,setTheme,notifications,setNotifications}) {
  const [name,setName]=useState(user?.displayName||""); const [space,setSpace]=useState(workspace?.name||"Personal workspace");
  const [photoBusy,setPhotoBusy]=useState(false); const [photoError,setPhotoError]=useState("");
  async function photoChange(e){const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){setPhotoError("Choose an image file.");return;}if(file.size>3*1024*1024){setPhotoError("Image must be smaller than 3 MB.");return;}setPhotoBusy(true);setPhotoError("");try{await onPhotoUpload(file);}catch{setPhotoError("Upload failed. Check Firebase Storage setup and rules.");}finally{setPhotoBusy(false);e.target.value="";}}
@@ -125,7 +125,7 @@ function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,saving,error
  <label className="field-label">Email address</label><input className="field-input" value={user?.email||""} disabled/></section>
  <section className="settings-section"><h3>Workspace</h3><label className="field-label">Workspace name</label><input className="field-input" value={space} onChange={e=>setSpace(e.target.value)} required minLength="2" maxLength="60"/></section>
  <section className="settings-section"><h3>Appearance</h3><div className="settings-choice-row"><div><b>Color theme</b><small>Choose how DayFlow looks on this device.</small></div><select className="field-input settings-select" value={theme} onChange={e=>setTheme(e.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div></section>
- <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Browser alerts while DayFlow is open.</small></span><input type="checkbox" checked={notifications} onChange={async e=>{if(e.target.checked){if("Notification" in window&&Notification.permission==="default"){const p=await Notification.requestPermission();setNotifications(p==="granted");}else setNotifications("Notification" in window&&Notification.permission==="granted");}else setNotifications(false);}}/></label><button type="button" className="settings-permission" onClick={requestReminderPermission}>Enable browser notifications</button></section>
+ <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Browser alerts while DayFlow is open.</small></span><input type="checkbox" checked={notifications} onChange={async e=>{if(e.target.checked){if("Notification" in window&&Notification.permission==="default"){const p=await Notification.requestPermission();setNotifications(p==="granted");}else setNotifications("Notification" in window&&Notification.permission==="granted");}else setNotifications(false);}}/></label><button type="button" className="settings-permission" onClick={onRequestReminderPermission}>Enable browser notifications</button></section>
  {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><div className="actions-spacer"/><button className="btn-primary" disabled={saving}>{saving?"Saving…":"Save settings"} <Check size={16}/></button></div>
  </form></div>;
 }
@@ -461,7 +461,7 @@ export default function App() {
 
     {modal && <TaskModal initial={modal.task} date={modal.date || selectedDate} onClose={() => setModal(null)} onSave={saveTask} onDelete={removeTask} />}
     {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}
-    {settingsOpen && authUser && <SettingsModal user={authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
+    {settingsOpen && authUser && <SettingsModal user={authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} onRequestReminderPermission={requestReminderPermission} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
     {toast && <div className="toast"><CheckCircle2 size={17} />{toast}</div>}
   </div>;
 }
