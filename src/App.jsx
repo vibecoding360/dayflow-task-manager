@@ -48,11 +48,13 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
   const [endTime, setEndTime] = useState(initial?.endTime || "10:00");
   const [priority, setPriority] = useState(initial?.priority || "Medium");
   const [category, setCategory] = useState(initial?.category || "Study");
+  const [repeat, setRepeat] = useState(initial?.repeat || "none");
+  const [reminder, setReminder] = useState(initial?.reminder || "none");
   const [error, setError] = useState("");
   function submit(e) {
     e.preventDefault();
     if (!title.trim()) { setError("Give your task a name first."); return; }
-    onSave({ title: title.trim(), notes: notes.trim(), date: taskDate, startTime, endTime, priority, category });
+    onSave({ title: title.trim(), notes: notes.trim(), date: taskDate, startTime, endTime, priority, category, repeat, reminder });
   }
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
     <form className="task-modal" onSubmit={submit}>
@@ -65,6 +67,7 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
         <div><label className="field-label">Start time</label><input className="field-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
         <div><label className="field-label">End time</label><input className="field-input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
       </div>
+      <div className="form-grid"><div><label className="field-label">Repeat</label><select className="field-input" value={repeat} onChange={(e)=>setRepeat(e.target.value)}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div><div><label className="field-label">Reminder</label><select className="field-input" value={reminder} onChange={(e)=>setReminder(e.target.value)}><option value="none">No reminder</option><option value="0">At task time</option><option value="5">5 minutes before</option><option value="15">15 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option></select></div></div>
       <label className="field-label">Category</label><div className="category-options">{CATEGORIES.map((item) => <button type="button" key={item} onClick={() => setCategory(item)} className={"category-choice tone-" + COLORS[item] + (category === item ? " selected" : "")}><span className="task-dot" />{item}</button>)}</div>
       {error && <p className="form-error">{error}</p>}
       <div className="modal-actions">{initial && <button type="button" className="delete-button" onClick={() => onDelete(initial.id)}><Trash2 size={16} /> Delete</button>}<div className="actions-spacer" /><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Check size={16} /> {initial ? "Save changes" : "Add task"}</button></div>
@@ -122,7 +125,7 @@ function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,saving,error
  <label className="field-label">Email address</label><input className="field-input" value={user?.email||""} disabled/></section>
  <section className="settings-section"><h3>Workspace</h3><label className="field-label">Workspace name</label><input className="field-input" value={space} onChange={e=>setSpace(e.target.value)} required minLength="2" maxLength="60"/></section>
  <section className="settings-section"><h3>Appearance</h3><div className="settings-choice-row"><div><b>Color theme</b><small>Choose how DayFlow looks on this device.</small></div><select className="field-input settings-select" value={theme} onChange={e=>setTheme(e.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div></section>
- <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Allow DayFlow to show reminder prompts.</small></span><input type="checkbox" checked={notifications} onChange={e=>setNotifications(e.target.checked)}/></label></section>
+ <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Browser alerts while DayFlow is open.</small></span><input type="checkbox" checked={notifications} onChange={async e=>{if(e.target.checked){if("Notification" in window&&Notification.permission==="default"){const p=await Notification.requestPermission();setNotifications(p==="granted");}else setNotifications("Notification" in window&&Notification.permission==="granted");}else setNotifications(false);}}/></label><button type="button" className="settings-permission" onClick={requestReminderPermission}>Enable browser notifications</button></section>
  {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><div className="actions-spacer"/><button className="btn-primary" disabled={saving}>{saving?"Saving…":"Save settings"} <Check size={16}/></button></div>
  </form></div>;
 }
@@ -250,6 +253,11 @@ export default function App() {
 
   useEffect(()=>{localStorage.setItem("dayflow-theme",theme);},[theme]);
   useEffect(()=>{localStorage.setItem("dayflow-notifications",notifications?"on":"off");},[notifications]);
+  useEffect(()=>{
+    if(!notifications || !("Notification" in window) || Notification.permission!=="granted") return;
+    const checkReminders=()=>{const now=Date.now();tasks.forEach(task=>{if(task.completed||!task.reminder||task.reminder==="none"||!task.startTime)return;const due=new Date(task.date+"T"+task.startTime).getTime()-Number(task.reminder)*60000;const key="dayflow-reminded-"+task.id+"-"+task.date;if(now>=due&&now<due+60000&&!localStorage.getItem(key)){new Notification("DayFlow reminder",{body:task.title+" starts "+(Number(task.reminder)===0?"now":"in "+task.reminder+" minutes")});localStorage.setItem(key,"1");}});};
+    checkReminders();const timer=window.setInterval(checkReminders,30000);return ()=>window.clearInterval(timer);
+  },[tasks,notifications]);
 
   function notify(message) {
     setToast(message);
@@ -274,14 +282,20 @@ export default function App() {
 
   async function saveTask(data) {
     if (modal?.task) {
-      if (authUser && firebaseReady) await updateDoc(doc(db, "users", authUser.uid, "tasks", modal.task.id), data);
-      else setTasks((items) => items.map((t) => t.id === modal.task.id ? { ...t, ...data } : t));
+      const updateData={...data,repeat:"none"};
+      if(authUser&&firebaseReady) await updateDoc(doc(db,"users",authUser.uid,"tasks",modal.task.id),updateData);
+      else setTasks(items=>items.map(t=>t.id===modal.task.id?{...t,...updateData}:t));
       notify("Task updated");
     } else {
-      const task = { ...data, completed: false, createdAt: new Date().toISOString() };
-      if (authUser && firebaseReady) await addDoc(collection(db, "users", authUser.uid, "tasks"), { ...task, createdAt: serverTimestamp() });
-      else setTasks((items) => [...items, { ...task, id: makeId() }]);
-      notify("Task added to your calendar");
+      const dates=[data.date];
+      if(data.repeat!=="none"){
+        const base=fromKey(data.date);
+        for(let i=1;i<12;i++){const next=data.repeat==="daily"?addDays(base,i):data.repeat==="weekly"?addDays(base,i*7):new Date(base.getFullYear(),base.getMonth()+i,Math.min(base.getDate(),new Date(base.getFullYear(),base.getMonth()+i+1,0).getDate()));dates.push(dateKey(next));}
+      }
+      const records=dates.map((date,index)=>({...data,date,repeat:data.repeat==="none"?"none":data.repeat,seriesId:data.repeat==="none"?null:(modal?.seriesId||makeId()),occurrence:index,completed:false,createdAt:new Date().toISOString()}));
+      if(authUser&&firebaseReady){for(const record of records){const {repeat,...persisted}=record;await addDoc(collection(db,"users",authUser.uid,"tasks"),{...persisted,createdAt:serverTimestamp()});}}
+      else setTasks(items=>[...items,...records.map(task=>({...task,id:makeId()}))]);
+      notify(data.repeat==="none"?"Task added to your calendar":"12 recurring tasks added");
     }
     setModal(null);
   }
@@ -338,6 +352,7 @@ export default function App() {
   }
 
 
+  async function requestReminderPermission(){if(!("Notification" in window)){notify("This browser does not support notifications.");return;}const result=await Notification.requestPermission();if(result==="granted"){setNotifications(true);notify("Task reminders enabled while DayFlow is open.");}else notify("Notification permission was not granted.");}
   async function saveSettings(name,space){
     if(!authUser||!firebaseReady)return;
     if(name.trim().length<2||space.trim().length<2){setSettingsError("Enter a display name and workspace name.");return;}
