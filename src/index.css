@@ -201,6 +201,9 @@ h1, h2, h3, p { margin-top: 0; }
 .progress-track { height: 5px; overflow: hidden; border-radius: 10px; background: #efeff7; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8a7df1, #6d61d9); transition: width .25s; }
 .agenda-list { display: grid; gap: 2px; }
+.agenda-search { display: flex; align-items: center; gap: 7px; margin: 10px 0 5px; padding: 8px 9px; border: 1px solid #ececf3; border-radius: 7px; color: #a2a4b2; background: #fcfcfe; }
+.agenda-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #5b5d72; background: transparent; font-size: 9px; }
+.agenda-search input::placeholder { color: #b4b5c1; }
 .agenda-task { display: flex; align-items: center; gap: 9px; padding: 10px 2px; border-bottom: 1px solid #f2f2f6; }
 .task-check { width: 17px; height: 17px; display: grid; flex: 0 0 auto; place-items: center; padding: 0; border: 1.5px solid #dadbe6; border-radius: 6px; color: #fff; background: #fff; }
 .agenda-task-done .task-check { border-color: #69b994; background: #69b994; }
