@@ -20,6 +20,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role == "owner";
     }
 
+    // The personal workspace ID is the owner's Firebase UID. This lets that
+    // owner safely resume first-time provisioning if membership creation was
+    // interrupted, without opening another user's workspace.
+    function isPersonalWorkspaceOwner(workspaceId) {
+      return signedIn()
+        && request.auth.uid == workspaceId
+        && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
+    }
+
     // User profile and existing personal task collection.
     match /users/{userId} {
       allow read, create, update: if ownsUser(userId);
@@ -32,18 +41,25 @@ service cloud.firestore {
 
     // Multi-tenant foundation: every workspace has an owner and explicit members.
     match /workspaces/{workspaceId} {
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow read: if isWorkspaceMember(workspaceId);
-      allow update, delete: if isWorkspaceOwner(workspaceId);
+      allow create: if signedIn()
+        && request.auth.uid == workspaceId
+        && request.resource.data.ownerId == request.auth.uid;
+      allow read: if isWorkspaceMember(workspaceId)
+        || (signedIn() && request.auth.uid == workspaceId);
+      allow update: if isPersonalWorkspaceOwner(workspaceId)
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isWorkspaceOwner(workspaceId);
 
       match /members/{memberId} {
         allow read: if isWorkspaceMember(workspaceId);
-        allow create: if (
+        allow create, update: if (
           signedIn()
           && request.auth.uid == memberId
-          && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid
+          && isPersonalWorkspaceOwner(workspaceId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.role == "owner"
         ) || isWorkspaceOwner(workspaceId);
-        allow update, delete: if isWorkspaceOwner(workspaceId);
+        allow delete: if isWorkspaceOwner(workspaceId);
       }
 
       match /tasks/{taskId} {
