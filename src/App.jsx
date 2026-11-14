@@ -11,8 +11,8 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup
 } from "firebase/auth";
-import { auth, db, storage, firebaseReady, ensurePersonalWorkspace } from "./firebase";
-import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
+import { auth, db, firebaseReady, ensurePersonalWorkspace } from "./firebase";
+
 
 const CATEGORIES = ["Study", "Work", "Personal", "Health"];
 const PRIORITIES = ["Low", "Medium", "High"];
@@ -120,10 +120,10 @@ function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSub
 function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,onRequestReminderPermission,saving,error,theme,setTheme,notifications,setNotifications}) {
  const [name,setName]=useState(user?.displayName||""); const [space,setSpace]=useState(workspace?.name||"Personal workspace");
  const [photoBusy,setPhotoBusy]=useState(false); const [photoError,setPhotoError]=useState("");
- async function photoChange(e){const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){setPhotoError("Choose an image file.");return;}if(file.size>3*1024*1024){setPhotoError("Image must be smaller than 3 MB.");return;}setPhotoBusy(true);setPhotoError("");try{await onPhotoUpload(file);}catch{setPhotoError("Upload failed. Check Firebase Storage setup and rules.");}finally{setPhotoBusy(false);e.target.value="";}}
+ async function photoChange(e){const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){setPhotoError("Choose an image file.");return;}if(file.size>5*1024*1024){setPhotoError("Choose an image smaller than 5 MB.");return;}setPhotoBusy(true);setPhotoError("");try{await onPhotoUpload(file);}catch(error){setPhotoError(error?.message||"Photo could not be saved. Please try a smaller image.");}finally{setPhotoBusy(false);e.target.value="";}}
  return <div className="modal-backdrop settings-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><form className="settings-modal" onSubmit={e=>{e.preventDefault();onSave(name,space);}}>
  <div className="modal-top"><div><span className="eyebrow">PREFERENCES</span><h2>Settings</h2></div><IconButton label="Close settings" onClick={onClose}><X size={19}/></IconButton></div>
- <section className="settings-section"><h3>Profile</h3><div className="settings-profile"><div className="settings-avatar">{user?.photoURL?<img src={user.photoURL} alt="Profile"/>:(name.trim()[0]||user?.email?.[0]||"D").toUpperCase()}</div><div><label className="settings-upload">{photoBusy?"Uploading…":"Change photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={photoChange} disabled={photoBusy}/></label><small>JPG, PNG or WebP · Max 3 MB</small></div></div>{photoError&&<p className="form-error">{photoError}</p>}
+ <section className="settings-section"><h3>Profile</h3><div className="settings-profile"><div className="settings-avatar">{user?.photoURL?<img src={user.photoURL} alt="Profile"/>:(name.trim()[0]||user?.email?.[0]||"D").toUpperCase()}</div><div><label className="settings-upload">{photoBusy?"Uploading…":"Change photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={photoChange} disabled={photoBusy}/></label><small>JPG, PNG or WebP · Max 5 MB · Compressed before saving</small></div></div>{photoError&&<p className="form-error">{photoError}</p>}
  <label className="field-label">Display name</label><input className="field-input" value={name} onChange={e=>setName(e.target.value)} required minLength="2" maxLength="60"/>
  <label className="field-label">Email address</label><input className="field-input" value={user?.email||""} disabled/></section>
  <section className="settings-section"><h3>Workspace</h3><label className="field-label">Workspace name</label><input className="field-input" value={space} onChange={e=>setSpace(e.target.value)} required minLength="2" maxLength="60"/></section>
@@ -291,6 +291,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!authUser || !firebaseReady) return;
+    return onSnapshot(doc(db, "users", authUser.uid), snapshot => {
+      const profile = snapshot.data() || {};
+      setAuthUser(current => current?.uid === authUser.uid
+        ? { ...current, profilePhotoDataUrl: profile.profilePhotoDataUrl || "" }
+        : current);
+    }, error => console.error("Profile sync failed:", error));
+  }, [authUser?.uid]);
+
+  useEffect(() => {
     if (!authUser || !firebaseReady) {
       try { setTasks(JSON.parse(localStorage.getItem("dayflow-tasks") || "[]")); } catch { setTasks([]); }
       return;
@@ -441,11 +451,27 @@ export default function App() {
     catch(e){console.error("Settings save failed",e);setSettingsError("Couldn't save settings. Please try again.");}finally{setSettingsBusy(false);}
   }
   async function uploadProfilePhoto(file){
-    if(!authUser||!storage)throw new Error("Storage unavailable");
-    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-").slice(-80);
-    const target=storageRef(storage,"profilePhotos/"+authUser.uid+"/"+Date.now()+"-"+safeName);
-    await uploadBytes(target,file,{contentType:file.type});const photoURL=await getDownloadURL(target);
-    await updateProfile(authUser,{photoURL});await updateDoc(doc(db,"users",authUser.uid),{photoURL,updatedAt:serverTimestamp()});setAuthUser(auth.currentUser);notify("Profile photo updated.");
+    if(!authUser||!db)throw new Error("Sign in to save a profile photo.");
+    const objectUrl=URL.createObjectURL(file);
+    try {
+      const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("This image could not be opened."));img.src=objectUrl;});
+      const canvas=document.createElement("canvas");
+      const scale=Math.min(1,128/Math.max(image.naturalWidth,image.naturalHeight));
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      const context=canvas.getContext("2d");
+      if(!context)throw new Error("Image compression is not supported by this browser.");
+      context.drawImage(image,0,0,canvas.width,canvas.height);
+      let dataUrl="";
+      for(const quality of [0.78,0.62,0.48,0.35]){
+        dataUrl=canvas.toDataURL("image/webp",quality);
+        if(dataUrl.length<=60000)break;
+      }
+      if(!dataUrl.startsWith("data:image/webp")||dataUrl.length>60000)throw new Error("Could not compress this photo enough. Try another image.");
+      await updateDoc(doc(db,"users",authUser.uid),{profilePhotoDataUrl:dataUrl,profilePhotoUpdatedAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      setAuthUser(current=>current?.uid===authUser.uid?{...current,profilePhotoDataUrl:dataUrl}:current);
+      notify("Profile photo saved.");
+    } finally { URL.revokeObjectURL(objectUrl); }
   }
 
   function changeMonth(amount) { setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + amount, 1)); }
@@ -472,7 +498,7 @@ export default function App() {
       <div className="category-nav">{CATEGORIES.map((c) => <button key={c} onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }} className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}><span className={"category-dot " + COLORS[c]} />{c}<span className="category-total">{tasks.filter((t) => t.category === c).length}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>One thing at a time.</strong><p>Small steps make great days. Keep your focus on what matters.</p></div>
-        <div className="profile-row"><div className="avatar">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? setSettingsOpen(true) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Settings" : "Sign in"}>{authUser ? <Settings2 size={17} /> : <LogIn size={17} />}</button></div>
+        <div className="profile-row"><div className="avatar">{(authUser?.profilePhotoDataUrl||authUser?.photoURL)?<img src={authUser.profilePhotoDataUrl||authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? setSettingsOpen(true) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Settings" : "Sign in"}>{authUser ? <Settings2 size={17} /> : <LogIn size={17} />}</button></div>
       </div>
     </aside>
     {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
@@ -541,7 +567,7 @@ export default function App() {
 
     {modal && <TaskModal initial={modal.task} date={modal.date || selectedDate} onClose={() => setModal(null)} onSave={saveTask} onDelete={removeTask} />}
     {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}
-    {settingsOpen && authUser && <SettingsModal user={authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} onRequestReminderPermission={requestReminderPermission} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
+    {settingsOpen && authUser && <SettingsModal user={authUser ? {...authUser,photoURL:authUser.profilePhotoDataUrl||authUser.photoURL} : authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} onRequestReminderPermission={requestReminderPermission} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
     {toast && <div className="toast"><CheckCircle2 size={17} />{toast}</div>}
   </div>;
 }
