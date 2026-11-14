@@ -953,3 +953,19 @@ h1, h2, h3, p { margin-top: 0; }
  .study-side { display:grid; grid-template-columns:1fr; }
  .study-insight,.study-templates { padding:15px; }
 }
+
+.weekly-report { padding:17px 18px; border:1px solid #e9e7f8; border-radius:14px; background:linear-gradient(145deg,#f8f7ff,#fff); }
+.weekly-report-score { display:flex; align-items:baseline; gap:8px; margin-top:11px; }
+.weekly-report-score strong { color:#665bd0; font-size:28px; letter-spacing:-1px; }
+.weekly-report-score span,.weekly-report-stats { color:#9294aa; font-size:10px; }
+.weekly-report-track { height:6px; margin-top:9px; overflow:hidden; border-radius:9px; background:#e9e7f5; }
+.weekly-report-track i { display:block; height:100%; border-radius:9px; background:linear-gradient(90deg,#8878f3,#5fc5a2); }
+.weekly-report-stats { display:flex; justify-content:space-between; margin-top:10px; }
+.weekly-report-stats b { color:#484a63; }
+.weekly-report-categories { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:13px; }
+.weekly-report-categories span { display:flex; justify-content:space-between; padding:7px 8px; border-radius:8px; color:#85879c; background:#f2f1fa; font-size:9px; }
+.weekly-report-categories b { color:#4c4e67; }
+.theme-dark .weekly-report { background:#292b41; border-color:#41435a; }
+.theme-dark .weekly-report-score strong,.theme-dark .weekly-report-stats b,.theme-dark .weekly-report-categories b { color:#c4bcff; }
+.theme-dark .weekly-report-categories span { color:#b5b5ca; background:#34364e; }
+@media(max-width:700px) { .weekly-report { padding:14px; } }
