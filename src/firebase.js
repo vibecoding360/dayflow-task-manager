@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 import {
   doc, getDoc, getFirestore, serverTimestamp, setDoc
 } from "firebase/firestore";
@@ -17,6 +18,7 @@ export const firebaseReady = Object.values(config).every(Boolean);
 const app = firebaseReady ? (getApps().length ? getApp() : initializeApp(config)) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
+export const storage = app ? getStorage(app) : null;
 
 /**
  * Provision a user's initial personal workspace.
