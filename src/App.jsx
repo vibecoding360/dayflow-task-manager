@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, updateProfile
+  onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup
 } from "firebase/auth";
 import { auth, db, storage, firebaseReady, ensurePersonalWorkspace } from "./firebase";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
@@ -135,7 +135,9 @@ function EmptyState({ onAdd }) {
 }
 
 
-function MarketingPage({ onStart, onSignIn, onDemo }) {
+function GoogleMark({ size = 18 }) { return <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91c-.58 2.96-2.26 5.48-4.73 7.18l7.63 5.91c4.45-4.11 7.17-10.17 7.17-17.56z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.89l-7.63-5.91c-2.12 1.42-4.84 2.26-8.27 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>; }
+
+function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return <div className="marketing-shell">
     <header className="marketing-nav">
@@ -144,7 +146,7 @@ function MarketingPage({ onStart, onSignIn, onDemo }) {
       <nav className={menuOpen ? "marketing-links marketing-links-open" : "marketing-links"}>
         <a href="#features" onClick={() => setMenuOpen(false)}>Features</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
       </nav>
-      <div className="marketing-nav-actions"><button className="marketing-login" onClick={onSignIn}>Log in</button><button className="marketing-nav-cta" onClick={onStart}>Get started <ArrowRight size={15} /></button></div>
+      <div className="marketing-nav-actions"><button className="marketing-google-login" onClick={onGoogleSignIn} aria-label="Continue with Google" title="Continue with Google"><GoogleMark size={19}/></button><button className="marketing-login" onClick={onSignIn}>Sign in</button><button className="marketing-nav-cta" onClick={onStart}>Get started <ArrowRight size={15} /></button></div>
     </header>
     <main id="home">
       <section className="marketing-hero">
@@ -312,6 +314,33 @@ export default function App() {
     else setTasks((items) => items.map((t) => t.id === task.id ? { ...t, completed } : t));
   }
 
+  async function signInWithGoogle() {
+    if (!firebaseReady || !auth) {
+      setAuthError("Google sign-in is unavailable until Firebase is configured.");
+      setAuthOpen(true);
+      return;
+    }
+    setAuthBusy(true); setAuthError("");
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(auth, provider);
+      setAuthOpen(false);
+      notify("Signed in with Google — your tasks will sync.");
+    } catch (e) {
+      if (e.code === "auth/popup-closed-by-user") {
+        setAuthError("The Google sign-in window was closed before completing.");
+      } else if (e.code === "auth/account-exists-with-different-credential") {
+        setAuthError("An account already exists with this email. Sign in using your original method.");
+      } else {
+        setAuthError(e.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized in Firebase Authentication."
+          : e.message || "Google sign-in failed. Please try again.");
+      }
+      setAuthOpen(true);
+    } finally { setAuthBusy(false); }
+  }
+
   async function authenticate(email, password, mode, fullName = "") {
     setAuthBusy(true); setAuthError("");
     try {
@@ -376,7 +405,7 @@ export default function App() {
   function openNewTask(date = selectedDate) { setModal({ date }); }
   function editTask(task) { setModal({ task, date: fromKey(task.date) }); }
 
-  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{onboardingOpen && authUser && <OnboardingModal name={profileName} workspaceName={workspaceName} setName={setProfileName} setWorkspaceName={setWorkspaceName} onSubmit={completeOnboarding} busy={profileBusy} error={profileError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
+  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onGoogleSignIn={signInWithGoogle} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{onboardingOpen && authUser && <OnboardingModal name={profileName} workspaceName={workspaceName} setName={setProfileName} setWorkspaceName={setWorkspaceName} onSubmit={completeOnboarding} busy={profileBusy} error={profileError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
 
   return <div className={"app-shell " + (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "theme-dark" : "")}>
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
