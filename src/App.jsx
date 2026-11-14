@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged
+  onAuthStateChanged, updateProfile
 } from "firebase/auth";
 import { auth, db, firebaseReady, ensurePersonalWorkspace } from "./firebase";
 
@@ -75,16 +75,36 @@ function AuthModal({ onClose, onSubmit, busy, error }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <form className="auth-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(email, password, mode); }}>
+    <form className="auth-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(email, password, mode, fullName); }}>
       <div className="auth-mark"><Sparkles size={21} /></div><IconButton label="Close" onClick={onClose} className="auth-close"><X size={18} /></IconButton>
       <span className="eyebrow">YOUR PLANS, EVERYWHERE</span><h2>{mode === "signin" ? "Welcome back" : "Create your account"}</h2>
       <p className="muted-copy">Sign in to sync your tasks securely across your devices.</p>
+      {mode === "signup" && <><label className="field-label">Your name</label><input className="field-input" type="text" required minLength="2" maxLength="60" placeholder="How should we call you?" value={fullName} onChange={(e) => setFullName(e.target.value)} /></>}
       <label className="field-label">Email address</label><input className="field-input" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
       <label className="field-label">Password</label><input className="field-input" type="password" minLength="6" required placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
       {error && <p className="form-error">{error}</p>}
       <button disabled={busy} className="btn-primary auth-submit">{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"} <ArrowRight size={17} /></button>
       <p className="auth-switch">{mode === "signin" ? "New to DayFlow?" : "Already have an account?"} <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>{mode === "signin" ? "Create an account" : "Sign in"}</button></p>
+    </form>
+  </div>;
+}
+
+
+function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSubmit, busy, error }) {
+  return <div className="modal-backdrop onboarding-backdrop">
+    <form className="onboarding-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+      <div className="onboarding-art"><div className="onboarding-orbit orbit-one"/><div className="onboarding-orbit orbit-two"/><div className="onboarding-spark"><Sparkles size={25}/></div><span className="onboarding-art-check"><Check size={15}/></span></div>
+      <span className="eyebrow">WELCOME TO DAYFLOW</span><h2>Let's make this space yours.</h2>
+      <p className="muted-copy">A couple of details help us set up your personal planning space.</p>
+      <label className="field-label">What should we call you?</label>
+      <input className="field-input" required minLength="2" maxLength="60" placeholder="Your name" value={name} onChange={(e)=>setName(e.target.value)}/>
+      <label className="field-label">Name your workspace</label>
+      <input className="field-input" required minLength="2" maxLength="60" placeholder="e.g. Personal workspace" value={workspaceName} onChange={(e)=>setWorkspaceName(e.target.value)}/>
+      {error && <p className="form-error">{error}</p>}
+      <button className="btn-primary onboarding-submit" disabled={busy}>{busy ? "Setting up your space…" : "Create my workspace"} <ArrowRight size={17}/></button>
+      <span className="onboarding-foot"><span className="lock-icon">●</span> Your workspace is private to your account.</span>
     </form>
   </div>;
 }
@@ -158,6 +178,11 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("Personal workspace");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -172,6 +197,11 @@ export default function App() {
       try {
         const personalWorkspace = await ensurePersonalWorkspace(user);
         setWorkspace(personalWorkspace);
+        if (!user.displayName?.trim()) {
+          setProfileName("");
+          setWorkspaceName(personalWorkspace.name || "Personal workspace");
+          setOnboardingOpen(true);
+        }
       } catch (error) {
         console.error("Workspace setup failed:", error);
         setWorkspaceError("Your account is signed in, but workspace setup needs attention.");
@@ -240,15 +270,41 @@ export default function App() {
     else setTasks((items) => items.map((t) => t.id === task.id ? { ...t, completed } : t));
   }
 
-  async function authenticate(email, password, mode) {
+  async function authenticate(email, password, mode, fullName = "") {
     setAuthBusy(true); setAuthError("");
     try {
-      if (mode === "signup") await createUserWithEmailAndPassword(auth, email, password);
-      else await signInWithEmailAndPassword(auth, email, password);
+      if (mode === "signup") {
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        if (fullName.trim()) await updateProfile(credential.user, { displayName: fullName.trim() });
+      } else await signInWithEmailAndPassword(auth, email, password);
       setAuthOpen(false); notify("You're signed in — tasks will sync.");
     } catch (e) {
       setAuthError(e.code === "auth/email-already-in-use" ? "That email already has an account. Try signing in." : e.code === "auth/invalid-credential" ? "Email or password doesn't look right." : e.message);
     } finally { setAuthBusy(false); }
+  }
+
+
+  async function completeOnboarding() {
+    const cleanName = profileName.trim();
+    const cleanWorkspace = workspaceName.trim();
+    if (cleanName.length < 2 || cleanWorkspace.length < 2) {
+      setProfileError("Please enter a name and a workspace name (at least 2 characters).");
+      return;
+    }
+    setProfileBusy(true); setProfileError("");
+    try {
+      await ensurePersonalWorkspace(authUser);
+      await updateProfile(authUser, { displayName: cleanName });
+      await updateDoc(doc(db, "users", authUser.uid), { displayName: cleanName, updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, "workspaces", authUser.uid), { name: cleanWorkspace, updatedAt: serverTimestamp() });
+      setAuthUser(auth.currentUser);
+      setWorkspace((current) => ({ ...(current || {}), id: authUser.uid, name: cleanWorkspace, plan: "free", role: "owner" }));
+      setOnboardingOpen(false);
+      notify("Your personal workspace is ready.");
+    } catch (error) {
+      console.error("Profile setup failed:", error);
+      setProfileError("We couldn't save your profile. Please try again.");
+    } finally { setProfileBusy(false); }
   }
 
   function changeMonth(amount) { setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + amount, 1)); }
@@ -259,7 +315,7 @@ export default function App() {
   function openNewTask(date = selectedDate) { setModal({ date }); }
   function editTask(task) { setModal({ task, date: fromKey(task.date) }); }
 
-  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
+  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{onboardingOpen && authUser && <OnboardingModal name={profileName} workspaceName={workspaceName} setName={setProfileName} setWorkspaceName={setWorkspaceName} onSubmit={completeOnboarding} busy={profileBusy} error={profileError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
 
   return <div className="app-shell">
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
@@ -275,7 +331,7 @@ export default function App() {
       <div className="category-nav">{CATEGORIES.map((c) => <button key={c} onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }} className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}><span className={"category-dot " + COLORS[c]} />{c}<span className="category-total">{tasks.filter((t) => t.category === c).length}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>One thing at a time.</strong><p>Small steps make great days. Keep your focus on what matters.</p></div>
-        <div className="profile-row"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
+        <div className="profile-row"><div className="avatar">{authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
       </div>
     </aside>
     {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
@@ -285,7 +341,7 @@ export default function App() {
         <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>Calendar</b></span></div>
         <div className="topbar-right">{workspaceError && <span className="workspace-warning" title={workspaceError}>Workspace setup issue</span>}<div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
           {authUser ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Sign out</button> : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")}><LogIn size={15} /> Sign in</button>}
-          <div className="top-avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div>
+          <div className="top-avatar">{authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div>
         </div>
       </header>
 
