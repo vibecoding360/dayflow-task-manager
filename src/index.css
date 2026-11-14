@@ -473,3 +473,5 @@ h1, h2, h3, p { margin-top: 0; }
 .theme-dark .nav-item,.theme-dark .category-nav-item,.theme-dark .welcome-subtitle,.theme-dark .sync-status,.theme-dark .top-signin,.theme-dark .calendar-legend,.theme-dark .agenda-date strong,.theme-dark .agenda-task-main strong{color:#b7b8ca}
 .theme-dark .month-cell,.theme-dark .week-column,.theme-dark .agenda-search,.theme-dark .agenda-task,.theme-dark .calendar-footer{border-color:#393b50}.theme-dark .month-cell,.theme-dark .agenda-search input{color:#e3e3ef;background:#202235}.theme-dark .sidebar-tip,.theme-dark .stat-highlight{background:#292841;border-color:#393651}.theme-dark .calendar-toolbar,.theme-dark .agenda-heading,.theme-dark .calendar-footer{border-color:#393b50}
 @media(max-width:600px){.settings-modal{padding:20px 17px}.settings-modal .modal-top{top:-20px}}
+
+.settings-permission{margin-top:12px;padding:7px 10px;border:1px solid #e8e6f2;border-radius:7px;color:#6d61d7;background:#faf9ff;font-size:9px;font-weight:700}
