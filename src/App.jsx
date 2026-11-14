@@ -32,12 +32,15 @@ function IconButton({ children, onClick, label, className = "" }) {
   return <button type="button" aria-label={label} title={label} onClick={onClick} className={"icon-button " + className}>{children}</button>;
 }
 
-function TaskPill({ task, onClick, compact = false }) {
+function TaskPill({ task, onClick, onToggle, compact = false }) {
   const tone = COLORS[task.category] || "violet";
-  return <button type="button" onClick={(e) => { e.stopPropagation(); onClick(task); }} className={"task-pill tone-" + tone + (task.completed ? " is-done" : "") + (compact ? " task-pill-compact" : "")}>
-    <span className="task-dot" /><span className="task-pill-title">{task.title}</span>
-    {!compact && task.startTime && <span className="task-pill-time">{task.startTime}</span>}
-  </button>;
+  return <span className="task-pill-wrap" style={{ display: "flex", alignItems: "center", gap: 3, minWidth: 0 }}>
+    {onToggle && <button type="button" aria-label={task.completed ? "Mark task incomplete" : "Mark task complete"} title={task.completed ? "Mark incomplete" : "Complete task"} onClick={(e) => { e.stopPropagation(); onToggle(task); }} style={{ width: 17, height: 17, flex: "0 0 17px", borderRadius: 5, border: "1px solid var(--line, #d8dce5)", background: task.completed ? "var(--accent, #7663d8)" : "transparent", color: "#fff", display: "grid", placeItems: "center", padding: 0, cursor: "pointer" }}>{task.completed ? <Check size={11} /> : null}</button>}
+    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(task); }} className={"task-pill tone-" + tone + (task.completed ? " is-done" : "") + (compact ? " task-pill-compact" : "")}>
+      <span className="task-dot" /><span className="task-pill-title">{task.title}</span>
+      {!compact && task.startTime && <span className="task-pill-time">{task.startTime}</span>}
+    </button>
+  </span>;
 }
 
 function TaskModal({ initial, date, onClose, onSave, onDelete }) {
@@ -47,7 +50,7 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
   const [startTime, setStartTime] = useState(initial?.startTime || "09:00");
   const [endTime, setEndTime] = useState(initial?.endTime || "10:00");
   const [priority, setPriority] = useState(initial?.priority || "Medium");
-  const [category, setCategory] = useState(initial?.category || "Study");
+  const [category, setCategory] = useState(initial?.category || localStorage.getItem("dayflow-last-category") || "Study");
   const [repeat, setRepeat] = useState(initial?.repeat || "none");
   const [reminder, setReminder] = useState(initial?.reminder || "none");
   const [template,setTemplate] = useState("");
@@ -249,6 +252,8 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [quickTaskTitle, setQuickTaskTitle] = useState("");
+  const [defaultCategory, setDefaultCategory] = useState(() => localStorage.getItem("dayflow-last-category") || "Study");
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -344,6 +349,10 @@ export default function App() {
   }, [visibleMonth]);
 
   async function saveTask(data) {
+    if (data.category) {
+      setDefaultCategory(data.category);
+      localStorage.setItem("dayflow-last-category", data.category);
+    }
     if (modal?.task) {
       const updateData={...data,repeat:"none"};
       if(authUser&&firebaseReady) await updateDoc(doc(db,"users",authUser.uid,"tasks",modal.task.id),updateData);
@@ -361,6 +370,19 @@ export default function App() {
       notify(data.repeat==="none"?"Task added to your calendar":"12 recurring tasks added");
     }
     setModal(null);
+  }
+
+  async function addQuickTask(e) {
+    e.preventDefault();
+    const title = quickTaskTitle.trim();
+    if (!title) return;
+    try {
+      await saveTask({ title, notes: "", date: dateKey(selectedDate || today), startTime: "", endTime: "", priority: "Medium", category: defaultCategory, repeat: "none", reminder: "none" });
+      setQuickTaskTitle("");
+    } catch (error) {
+      console.error("Quick task creation failed:", error);
+      notify("Couldn't add the task. Please try again.");
+    }
   }
 
   async function removeTask(id) {
@@ -513,7 +535,11 @@ export default function App() {
       </header>
 
       <section className="page-content">
-        <div className="welcome-row"><div><div className="date-overline"><span className="live-dot" /> {fullDay(today).toUpperCase()}</div><h1>{greeting()}, let's make<br className="mobile-break" /> today <span className="heading-accent">count.</span></h1><p className="welcome-subtitle">A little clarity goes a long way. Here's your plan.</p></div><button className="btn-primary add-main" onClick={() => openNewTask()}><Plus size={18} /> Add a task</button></div>
+        <div className="welcome-row"><div><div className="date-overline"><span className="live-dot" /> {fullDay(today).toUpperCase()}</div><h1>{greeting()}, let's make<br className="mobile-break" /> today <span className="heading-accent">count.</span></h1><p className="welcome-subtitle">A little clarity goes a long way. Here's your plan.</p></div><button className="btn-primary add-main" onClick={() => openNewTask()}><Plus size={18} /> More options</button></div>
+        <form onSubmit={addQuickTask} style={{ display: "flex", gap: 10, alignItems: "center", maxWidth: 620, margin: "0 0 24px" }}>
+          <input className="field-input" style={{ flex: 1, minWidth: 0, height: 46 }} value={quickTaskTitle} onChange={e => setQuickTaskTitle(e.target.value)} placeholder="Add a task and press Enter…" aria-label="Quick add task" />
+          <button className="btn-primary" type="submit" disabled={!quickTaskTitle.trim()} style={{ height: 46, whiteSpace: "nowrap" }}><Plus size={17} /> Add task</button>
+        </form>
 
         {view !== "timer" && <section className="stats-grid">
           <div className="stat-card stat-highlight"><div className="stat-top"><span>Today's progress</span><span className="stat-icon"><Sparkles size={17} /></span></div><div className="stat-main"><strong>{progress}<small>%</small></strong><div className="progress-ring" style={{ "--progress": (progress * 3.6) + "deg" }}><div>{todayDone}<small>/{todayTasks.length}</small></div></div></div><div className="stat-foot">{todayTasks.length ? (todayTasks.length - todayDone) + " tasks left to go" : "A fresh page. Add your first task."}</div></div>
@@ -534,12 +560,12 @@ export default function App() {
               const dayTasks = tasks.filter((t) => t.date === dateKey(date) && (filter === "All" || t.category === filter));
               const inMonth = date.getMonth() === visibleMonth.getMonth();
               return <button key={dateKey(date)} className={"month-cell " + (!inMonth ? "outside-month " : "") + (sameDay(date, selectedDate) ? "selected-cell " : "") + (sameDay(date, today) ? "current-cell" : "")} onClick={() => chooseDate(date)} onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("drop-target");}} onDragLeave={e=>e.currentTarget.classList.remove("drop-target")} onDrop={async e=>{e.preventDefault();e.currentTarget.classList.remove("drop-target");const id=e.dataTransfer.getData("text/dayflow-task");const t=tasks.find(x=>x.id===id);if(t&&t.date!==dateKey(date)){if(authUser&&firebaseReady)await updateDoc(doc(db,"users",authUser.uid,"tasks",id),{date:dateKey(date)});else setTasks(items=>items.map(x=>x.id===id?{...x,date:dateKey(date)}:x));notify("Task rescheduled");}}}>
-                <span className="cell-date">{date.getDate()}</span><div className="cell-events">{dayTasks.slice(0, 2).map((t) => <TaskPill key={t.id} task={t} onClick={editTask} compact />)}{dayTasks.length > 2 && <span className="more-events">+{dayTasks.length - 2} more</span>}</div>
+                <span className="cell-date">{date.getDate()}</span><div className="cell-events">{dayTasks.slice(0, 2).map((t) => <TaskPill key={t.id} task={t} onClick={editTask} onToggle={toggleTask} compact />)}{dayTasks.length > 2 && <span className="more-events">+{dayTasks.length - 2} more</span>}</div>
               </button>;
             })}</div></div>}
             {view === "week" && <div className="week-grid">{weekDates.map((date) => {
               const dayTasks = tasks.filter((t) => t.date === dateKey(date) && (filter === "All" || t.category === filter)).sort((a,b) => (a.startTime || "").localeCompare(b.startTime || ""));
-              return <div key={dateKey(date)} className={"week-column " + (sameDay(date,today) ? "week-today" : "")} onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault();const id=e.dataTransfer.getData("text/dayflow-task");const t=tasks.find(x=>x.id===id);if(t&&t.date!==dateKey(date)){if(authUser&&firebaseReady)await updateDoc(doc(db,"users",authUser.uid,"tasks",id),{date:dateKey(date)});else setTasks(items=>items.map(x=>x.id===id?{...x,date:dateKey(date)}:x));notify("Task rescheduled");}}}><button className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button><div className="week-events">{dayTasks.map((t) => <TaskPill key={t.id} task={t} onClick={editTask} />)}<button className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }}><Plus size={15} /></button></div></div>;
+              return <div key={dateKey(date)} className={"week-column " + (sameDay(date,today) ? "week-today" : "")} onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault();const id=e.dataTransfer.getData("text/dayflow-task");const t=tasks.find(x=>x.id===id);if(t&&t.date!==dateKey(date)){if(authUser&&firebaseReady)await updateDoc(doc(db,"users",authUser.uid,"tasks",id),{date:dateKey(date)});else setTasks(items=>items.map(x=>x.id===id?{...x,date:dateKey(date)}:x));notify("Task rescheduled");}}}><button className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button><div className="week-events">{dayTasks.map((t) => <TaskPill key={t.id} task={t} onClick={editTask} onToggle={toggleTask} />)}<button className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }}><Plus size={15} /></button></div></div>;
             })}</div>}
             {view === "day" && <div className="day-agenda">{selectedTasks.length ? selectedTasks.map((t) => <div className="day-event" key={t.id}><div className="day-event-time">{t.startTime || "Anytime"}<span>{t.endTime || ""}</span></div><div className={"day-event-bar tone-" + (COLORS[t.category] || "violet")}><div><strong className={t.completed ? "strike" : ""}>{t.title}</strong><span>{t.category} · {t.priority} priority</span></div><div className="day-event-actions"><button onClick={() => toggleTask(t)} aria-label="Toggle task">{t.completed ? <CheckCircle2 size={18} /> : <span className="empty-check" />}</button><button onClick={() => editTask(t)} aria-label="Edit task"><Pencil size={16} /></button></div></div></div>) : <EmptyState onAdd={() => openNewTask(selectedDate)} />}</div>}
             <div className="calendar-footer"><span><span className="footer-dot" /> {tasks.filter((t) => t.date === dateKey(selectedDate)).length} tasks on {sameDay(selectedDate, today) ? "today" : selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><button onClick={() => setView("day")}>View daily agenda <ArrowRight size={15} /></button></div>
