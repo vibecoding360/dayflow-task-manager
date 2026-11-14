@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight,
-  Clock3, Cloud, CloudOff, Flag, LayoutDashboard, ListTodo, LogIn, LogOut,
+  Clock3, Cloud, CloudOff, Flag, LayoutDashboard, ListTodo, LogIn, LogOut, Timer, Play, Pause, RotateCcw,
   Menu, MoreHorizontal, Pencil, Plus, Search, Settings2, Sparkles, Trash2, X
 } from "lucide-react";
 import {
@@ -128,6 +128,28 @@ function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,onRequestRem
  <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Browser alerts while DayFlow is open.</small></span><input type="checkbox" checked={notifications} onChange={async e=>{if(e.target.checked){if("Notification" in window&&Notification.permission==="default"){const p=await Notification.requestPermission();setNotifications(p==="granted");}else setNotifications("Notification" in window&&Notification.permission==="granted");}else setNotifications(false);}}/></label><button type="button" className="settings-permission" onClick={onRequestReminderPermission}>Enable browser notifications</button></section>
  {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><div className="actions-spacer"/><button className="btn-primary" disabled={saving}>{saving?"Saving…":"Save settings"} <Check size={16}/></button></div>
  </form></div>;
+}
+
+function StudyTimer({onStartTask,tasks}) {
+ const [hours,setHours]=useState(()=>Number(localStorage.getItem("dayflow-study-hours")||1));
+ const [minutes,setMinutes]=useState(()=>Number(localStorage.getItem("dayflow-study-minutes")||0));
+ const [remaining,setRemaining]=useState(()=>Number(localStorage.getItem("dayflow-study-remaining")||3600));
+ const [running,setRunning]=useState(false);
+ const [label,setLabel]=useState("Focused study session");
+ const [sessions,setSessions]=useState(()=>Number(localStorage.getItem("dayflow-study-sessions")||0));
+ const [total,setTotal]=useState(()=>Number(localStorage.getItem("dayflow-study-total")||0));
+ const duration=Math.max(60,Math.min(43200,hours*3600+minutes*60));
+ useEffect(()=>{localStorage.setItem("dayflow-study-hours",hours);localStorage.setItem("dayflow-study-minutes",minutes);},[hours,minutes]);
+ useEffect(()=>{if(!running)return;const id=setInterval(()=>setRemaining(v=>{if(v<=1){setRunning(false);setSessions(s=>{localStorage.setItem("dayflow-study-sessions",s+1);return s+1;});setTotal(t=>{localStorage.setItem("dayflow-study-total",t+Math.round(duration/60));return t+Math.round(duration/60);});if("Notification"in window&&Notification.permission==="granted")new Notification("Study session complete",{body:"Your custom timer has finished."});return 0;}return v-1;}),1000);return()=>clearInterval(id);},[running,duration]);
+ const hh=Math.floor(remaining/3600),mm=Math.floor(remaining%3600/60),ss=remaining%60,display=[hh,mm,ss].map(v=>String(v).padStart(2,"0")).join(":");
+ const weekStart=addDays(new Date(),-((new Date().getDay()+6)%7));
+ const completed=tasks.filter(t=>t.category==="Study"&&t.completed&&t.date>=dateKey(weekStart)&&t.date<=dateKey(addDays(weekStart,6))).length;
+ function apply(){const d=Math.max(60,Math.min(43200,hours*3600+minutes*60));setRemaining(d);localStorage.setItem("dayflow-study-remaining",d);setRunning(false);}
+ function reset(){setRunning(false);setRemaining(duration);localStorage.setItem("dayflow-study-remaining",duration);}
+ return <section className="study-page"><div className="study-heading"><div><span className="eyebrow">STUDY SPACE</span><h1>Your time. <span className="heading-accent">Your pace.</span></h1><p>Choose any duration. No Pomodoro cycles or forced breaks.</p></div><span className="study-live"><i/> CUSTOM STUDY TIMER</span></div>
+ <div className="study-layout"><div className="study-timer-card"><div className="study-session-label"><Timer size={17}/> FOCUS SESSION</div><input className="study-session-name" value={label} onChange={e=>setLabel(e.target.value)} aria-label="Session name"/><div className="study-clock">{display}</div><div className="study-clock-caption">{remaining===0?"Session complete":running?"Time remaining":"Ready when you are"}</div><div className="study-controls"><button className="btn-primary study-start" onClick={()=>{if(remaining===0)reset();setRunning(v=>!v);}}>{running?<Pause size={18}/>:<Play size={18}/>} {running?"Pause session":"Start studying"}</button><button className="study-reset" onClick={reset} aria-label="Reset timer"><RotateCcw size={17}/></button></div>
+ <div className="study-duration"><span className="eyebrow">SET YOUR DURATION</span><div className="duration-fields"><label><input type="number" min="0" max="12" disabled={running} value={hours} onChange={e=>setHours(Math.min(12,Math.max(0,Number(e.target.value))))}/><small>Hours</small></label><b>:</b><label><input type="number" min="0" max="59" disabled={running} value={minutes} onChange={e=>setMinutes(Math.min(59,Math.max(0,Number(e.target.value))))}/><small>Minutes</small></label><button onClick={apply} disabled={running}>Apply</button></div><p>From 1 minute to 12 hours. Pause whenever you want.</p></div></div>
+ <aside className="study-side"><div className="study-insight"><span className="eyebrow">YOUR STUDY TRACKER</span><div className="study-metric"><strong>{sessions}</strong><span>Sessions completed<br/>on this device</span></div><div className="study-metric"><strong>{Math.floor(total/60)}h {total%60}m</strong><span>Total focused time<br/>on this device</span></div><div className="study-metric"><strong>{completed}</strong><span>Completed Study tasks<br/>this week</span></div></div><div className="study-templates"><span className="eyebrow">QUICK DURATIONS</span><div>{[15,25,45,60,90,120].map(n=><button key={n} onClick={()=>{setHours(Math.floor(n/60));setMinutes(n%60);setRemaining(n*60);setRunning(false);}}>{n<60?n+" min":n/60+" hr"}</button>)}</div><p>Presets are optional. Set any duration above.</p></div><button className="study-add-task" onClick={onStartTask}><Plus size={16}/> Plan a study task</button></aside></div></section>;
 }
 
 function EmptyState({ onAdd }) {
@@ -413,7 +435,7 @@ export default function App() {
       <div className="workspace-label">WORKSPACE</div>
       <nav className="main-nav">
         <button className="nav-item" onClick={() => { setView("month"); setMobileNav(false); }}><LayoutDashboard size={18} /> Overview</button>
-        <button className="nav-item nav-active" onClick={() => { setView("month"); setMobileNav(false); }}><CalendarDays size={18} /> Calendar <span className="nav-count">{tasks.length}</span></button>
+        <button className={"nav-item " + (view !== "timer" ? "nav-active" : "")} onClick={() => { setView("month"); setMobileNav(false); }}><CalendarDays size={18} /> Calendar <span className="nav-count">{tasks.length}</span></button><button className={"nav-item " + (view === "timer" ? "nav-active" : "")} onClick={() => { setView("timer"); setMobileNav(false); }}><Timer size={18}/> Study timer</button>
         <button className="nav-item" onClick={() => { chooseDate(today); setView("day"); setMobileNav(false); }}><ListTodo size={18} /> My tasks</button>
       </nav>
       <div className="sidebar-divider" />
@@ -428,7 +450,7 @@ export default function App() {
 
     <main className="main-area">
       <header className="topbar">
-        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>Calendar</b></span></div>
+        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>{view === "timer" ? "Study timer" : "Calendar"}</b></span></div>
         <div className="topbar-right">{workspaceError && <span className="workspace-warning" title={workspaceError}>Workspace setup issue</span>}<div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
           {authUser ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Sign out</button> : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")}><LogIn size={15} /> Sign in</button>}
           <button className="top-avatar top-avatar-button" onClick={()=>authUser&&setSettingsOpen(true)} aria-label="Open settings">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</button>
@@ -438,14 +460,14 @@ export default function App() {
       <section className="page-content">
         <div className="welcome-row"><div><div className="date-overline"><span className="live-dot" /> {fullDay(today).toUpperCase()}</div><h1>{greeting()}, let's make<br className="mobile-break" /> today <span className="heading-accent">count.</span></h1><p className="welcome-subtitle">A little clarity goes a long way. Here's your plan.</p></div><button className="btn-primary add-main" onClick={() => openNewTask()}><Plus size={18} /> Add a task</button></div>
 
-        <section className="stats-grid">
+        {view !== "timer" && <section className="stats-grid">
           <div className="stat-card stat-highlight"><div className="stat-top"><span>Today's progress</span><span className="stat-icon"><Sparkles size={17} /></span></div><div className="stat-main"><strong>{progress}<small>%</small></strong><div className="progress-ring" style={{ "--progress": (progress * 3.6) + "deg" }}><div>{todayDone}<small>/{todayTasks.length}</small></div></div></div><div className="stat-foot">{todayTasks.length ? (todayTasks.length - todayDone) + " tasks left to go" : "A fresh page. Add your first task."}</div></div>
           <div className="stat-card"><div className="stat-top"><span>Tasks this week</span><span className="stat-icon pale-blue"><CalendarDays size={17} /></span></div><div className="stat-number">{tasks.filter((t) => t.date >= dateKey(weekStart) && t.date <= dateKey(addDays(weekStart, 6))).length}</div><div className="stat-foot">Across your calendar</div></div>
           <div className="stat-card"><div className="stat-top"><span>All completed</span><span className="stat-icon pale-green"><CheckCircle2 size={17} /></span></div><div className="stat-number">{completedCount}</div><div className="stat-foot">Little wins add up</div></div>
           <div className="stat-card"><div className="stat-top"><span>Coming up</span><span className="stat-icon pale-amber"><Clock3 size={17} /></span></div><div className="stat-number">{upcoming.length}</div><div className="stat-foot">Your next few priorities</div></div>
         </section>
 
-        <section className="planner-layout">
+        {view === "timer" ? <StudyTimer tasks={tasks} onStartTask={()=>setModal({date:dateKey(today)})}/> : <section className="planner-layout">
           <div className="calendar-card">
             <div className="calendar-toolbar"><div><span className="eyebrow">YOUR SCHEDULE</span><h2>{view === "day" ? fullDay(selectedDate) : view === "week" ? "Week of " + selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : monthLabel(visibleMonth)}</h2></div>
               <div className="calendar-actions"><button className="today-button" onClick={() => { chooseDate(today); setView("month"); }}>Today</button><div className="view-switch">{["month", "week", "day"].map((v) => <button key={v} onClick={() => setView(v)} className={view === v ? "view-selected" : ""}>{v[0].toUpperCase() + v.slice(1)}</button>)}</div>
@@ -462,7 +484,7 @@ export default function App() {
             })}</div></div>}
             {view === "week" && <div className="week-grid">{weekDates.map((date) => {
               const dayTasks = tasks.filter((t) => t.date === dateKey(date) && (filter === "All" || t.category === filter)).sort((a,b) => (a.startTime || "").localeCompare(b.startTime || ""));
-              return <div key={dateKey(date)} className={"week-column " + (sameDay(date,today) ? "week-today" : "")}><button className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button><div className="week-events">{dayTasks.map((t) => <TaskPill key={t.id} task={t} onClick={editTask} />)}<button className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }}><Plus size={15} /></button></div></div>;
+              return <div key={dateKey(date)} className={"week-column " + (sameDay(date,today) ? "week-today" : "")} onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault();const id=e.dataTransfer.getData("text/dayflow-task");const t=tasks.find(x=>x.id===id);if(t&&t.date!==dateKey(date)){if(authUser&&firebaseReady)await updateDoc(doc(db,"users",authUser.uid,"tasks",id),{date:dateKey(date)});else setTasks(items=>items.map(x=>x.id===id?{...x,date:dateKey(date)}:x));notify("Task rescheduled");}}}><button className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button><div className="week-events">{dayTasks.map((t) => <TaskPill key={t.id} task={t} onClick={editTask} />)}<button className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }}><Plus size={15} /></button></div></div>;
             })}</div>}
             {view === "day" && <div className="day-agenda">{selectedTasks.length ? selectedTasks.map((t) => <div className="day-event" key={t.id}><div className="day-event-time">{t.startTime || "Anytime"}<span>{t.endTime || ""}</span></div><div className={"day-event-bar tone-" + (COLORS[t.category] || "violet")}><div><strong className={t.completed ? "strike" : ""}>{t.title}</strong><span>{t.category} · {t.priority} priority</span></div><div className="day-event-actions"><button onClick={() => toggleTask(t)} aria-label="Toggle task">{t.completed ? <CheckCircle2 size={18} /> : <span className="empty-check" />}</button><button onClick={() => editTask(t)} aria-label="Edit task"><Pencil size={16} /></button></div></div></div>) : <EmptyState onAdd={() => openNewTask(selectedDate)} />}</div>}
             <div className="calendar-footer"><span><span className="footer-dot" /> {tasks.filter((t) => t.date === dateKey(selectedDate)).length} tasks on {sameDay(selectedDate, today) ? "today" : selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><button onClick={() => setView("day")}>View daily agenda <ArrowRight size={15} /></button></div>
@@ -484,7 +506,8 @@ export default function App() {
             </div>
           </aside>
         </section>
-        <div className="bottom-note"><Sparkles size={14} /><span>Make space for what matters. The rest can wait.</span><span className="note-right">DAYFLOW · YOUR PERSONAL PLANNER</span></div>
+        </section>}
+        {view !== "timer" && <div className="bottom-note"><Sparkles size={14} /><span>Make space for what matters. The rest can wait.</span><span className="note-right">DAYFLOW · YOUR PERSONAL PLANNER</span></div>}
       </section>
     </main>
 
