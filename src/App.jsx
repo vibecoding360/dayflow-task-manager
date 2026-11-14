@@ -50,6 +50,8 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
   const [category, setCategory] = useState(initial?.category || "Study");
   const [repeat, setRepeat] = useState(initial?.repeat || "none");
   const [reminder, setReminder] = useState(initial?.reminder || "none");
+  const [template,setTemplate] = useState("");
+  function applyTemplate(value){setTemplate(value);const presets={"Study session":{title:"Study session",category:"Study",startTime:"09:00",endTime:"10:00",priority:"High"},"Revision":{title:"Revise notes",category:"Study",startTime:"18:00",endTime:"19:00",priority:"Medium"},"Practice questions":{title:"Practice questions",category:"Study",startTime:"10:00",endTime:"11:00",priority:"High"},"Assignment":{title:"Complete assignment",category:"Study",startTime:"16:00",endTime:"17:00",priority:"High"},"Work block":{title:"Focused work block",category:"Work",startTime:"09:00",endTime:"10:00",priority:"Medium"}};const p=presets[value];if(p){setTitle(p.title);setCategory(p.category);setStartTime(p.startTime);setEndTime(p.endTime);setPriority(p.priority);}}
   const [error, setError] = useState("");
   function submit(e) {
     e.preventDefault();
@@ -59,7 +61,8 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
     <form className="task-modal" onSubmit={submit}>
       <div className="modal-top"><div><span className="eyebrow">{initial ? "MAKE AN EDIT" : "A LITTLE PLAN"}</span><h2>{initial ? "Edit task" : "Add a task"}</h2></div><IconButton label="Close" onClick={onClose}><X size={19} /></IconButton></div>
-      <label className="field-label">Task name</label><input autoFocus className="field-input title-input" placeholder="What do you need to do?" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <label className="field-label">Start from a template <span className="optional">Optional</span></label><select className="field-input" value={template} onChange={e=>applyTemplate(e.target.value)}><option value="">Choose a task template</option><option>Study session</option><option>Revision</option><option>Practice questions</option><option>Assignment</option><option>Work block</option></select>
+       <label className="field-label">Task name</label><input autoFocus className="field-input title-input" placeholder="What do you need to do?" value={title} onChange={(e) => setTitle(e.target.value)} />
       <label className="field-label">A few details <span className="optional">Optional</span></label><textarea className="field-input notes-input" placeholder="Add a note or a tiny reminder…" value={notes} onChange={(e) => setNotes(e.target.value)} rows="2" />
       <div className="form-grid">
         <div><label className="field-label">Date</label><input className="field-input" type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} /></div>
@@ -478,7 +481,7 @@ export default function App() {
             {view === "month" && <div className="month-calendar"><div className="weekday-row">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d}>{d}</div>)}</div><div className="month-grid">{monthCells.map((date) => {
               const dayTasks = tasks.filter((t) => t.date === dateKey(date) && (filter === "All" || t.category === filter));
               const inMonth = date.getMonth() === visibleMonth.getMonth();
-              return <button key={dateKey(date)} className={"month-cell " + (!inMonth ? "outside-month " : "") + (sameDay(date, selectedDate) ? "selected-cell " : "") + (sameDay(date, today) ? "current-cell" : "")} onClick={() => chooseDate(date)}>
+              return <button key={dateKey(date)} className={"month-cell " + (!inMonth ? "outside-month " : "") + (sameDay(date, selectedDate) ? "selected-cell " : "") + (sameDay(date, today) ? "current-cell" : "")} onClick={() => chooseDate(date)} onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("drop-target");}} onDragLeave={e=>e.currentTarget.classList.remove("drop-target")} onDrop={async e=>{e.preventDefault();e.currentTarget.classList.remove("drop-target");const id=e.dataTransfer.getData("text/dayflow-task");const t=tasks.find(x=>x.id===id);if(t&&t.date!==dateKey(date)){if(authUser&&firebaseReady)await updateDoc(doc(db,"users",authUser.uid,"tasks",id),{date:dateKey(date)});else setTasks(items=>items.map(x=>x.id===id?{...x,date:dateKey(date)}:x));notify("Task rescheduled");}}}>
                 <span className="cell-date">{date.getDate()}</span><div className="cell-events">{dayTasks.slice(0, 2).map((t) => <TaskPill key={t.id} task={t} onClick={editTask} compact />)}{dayTasks.length > 2 && <span className="more-events">+{dayTasks.length - 2} more</span>}</div>
               </button>;
             })}</div></div>}
