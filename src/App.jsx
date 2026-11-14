@@ -146,7 +146,11 @@ function StudyTimer({onStartTask,tasks}) {
  useEffect(()=>{if(!running)return;const id=setInterval(()=>setRemaining(v=>{if(v<=1){setRunning(false);setSessions(s=>{localStorage.setItem("dayflow-study-sessions",s+1);return s+1;});setTotal(t=>{localStorage.setItem("dayflow-study-total",t+Math.round(duration/60));return t+Math.round(duration/60);});if("Notification"in window&&Notification.permission==="granted")new Notification("Study session complete",{body:"Your custom timer has finished."});return 0;}return v-1;}),1000);return()=>clearInterval(id);},[running,duration]);
  const hh=Math.floor(remaining/3600),mm=Math.floor(remaining%3600/60),ss=remaining%60,display=[hh,mm,ss].map(v=>String(v).padStart(2,"0")).join(":");
  const weekStart=addDays(new Date(),-((new Date().getDay()+6)%7));
- const weekTasks=tasks.filter(t=>t.date>=dateKey(weekStart)&&t.date<=dateKey(addDays(weekStart,6)));\n const completed=weekTasks.filter(t=>t.completed).length;\n const completionRate=weekTasks.length?Math.round(completed/weekTasks.length*100):0;\n const studyDone=weekTasks.filter(t=>t.category==="Study"&&t.completed).length;\n const categorySummary=["Study","Work","Personal","Health"].map(name=>({name,count:weekTasks.filter(t=>t.category===name&&t.completed).length}));
+ const weekTasks=tasks.filter(t=>t.date>=dateKey(weekStart)&&t.date<=dateKey(addDays(weekStart,6)));
+ const completed=weekTasks.filter(t=>t.completed).length;
+ const completionRate=weekTasks.length?Math.round(completed/weekTasks.length*100):0;
+ const studyDone=weekTasks.filter(t=>t.category==="Study"&&t.completed).length;
+ const categorySummary=["Study","Work","Personal","Health"].map(name=>({name,count:weekTasks.filter(t=>t.category===name&&t.completed).length}));
  function apply(){const d=Math.max(60,Math.min(43200,hours*3600+minutes*60));setRemaining(d);localStorage.setItem("dayflow-study-remaining",d);setRunning(false);}
  function reset(){setRunning(false);setRemaining(duration);localStorage.setItem("dayflow-study-remaining",duration);}
  return <section className="study-page"><div className="study-heading"><div><span className="eyebrow">STUDY SPACE</span><h1>Your time. <span className="heading-accent">Your pace.</span></h1><p>Choose any duration. No Pomodoro cycles or forced breaks.</p></div><span className="study-live"><i/> CUSTOM STUDY TIMER</span></div>
