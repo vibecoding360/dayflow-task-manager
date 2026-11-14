@@ -458,3 +458,18 @@ h1, h2, h3, p { margin-top: 0; }
 .onboarding-foot {display:flex;align-items:center;justify-content:center;gap:7px;margin-top:15px;color:#a3a2b0;font-size:9px}
 .lock-icon {font-size:7px;color:#65b38e}
 @media(max-width:520px){.onboarding-modal{padding:25px 20px;border-radius:15px}.onboarding-modal h2{font-size:20px}}
+
+/* Account settings */
+.settings-backdrop{z-index:85}.settings-modal{width:min(100%,540px);max-height:90vh;overflow:auto;padding:26px;border:1px solid #ecebf3;border-radius:17px;background:#fff;box-shadow:0 25px 80px #25243e30}
+.settings-modal .modal-top{position:sticky;top:-26px;z-index:2;padding:0 0 15px;background:#fff}.settings-modal .modal-top h2{margin:6px 0 0;font:800 23px "Manrope",sans-serif;color:#303047}
+.settings-section{padding:18px 0;border-top:1px solid #f0eff5}.settings-section h3{margin:0 0 14px;color:#45465c;font-size:12px}
+.settings-section .field-label{display:block;margin:13px 0 7px;color:#77788b;font-size:10px;font-weight:700}.settings-section .field-input{width:100%;min-height:40px;padding:0 11px;border:1px solid #e9e9f0;border-radius:8px;color:#45465c;background:#fff;font-size:11px}.settings-section .field-input:disabled{background:#f8f8fb;color:#a5a5b2}
+.settings-profile{display:flex;align-items:center;gap:13px;margin-bottom:17px}.settings-avatar{width:56px;height:56px;display:grid;place-items:center;overflow:hidden;border-radius:50%;color:#6c60d5;background:#efedff;font-size:20px;font-weight:800}.settings-avatar img,.avatar img,.top-avatar img{width:100%;height:100%;object-fit:cover}
+.settings-upload{display:inline-flex;padding:7px 10px;border:1px solid #e8e6f2;border-radius:7px;color:#6d61d7;font-size:10px;font-weight:700;cursor:pointer}.settings-upload input{display:none}
+.settings-profile small,.settings-choice-row small,.settings-toggle small{display:block;margin-top:5px;color:#a0a1af;font-size:9px}.settings-choice-row,.settings-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px}.settings-choice-row b,.settings-toggle b{color:#55566b;font-size:11px}.settings-select{width:115px!important}.settings-toggle input{width:17px;height:17px;accent-color:#7566e9}
+.top-avatar-button{padding:0;border:0;cursor:pointer}
+.theme-dark{background:#171827;color:#e9e9f4}.theme-dark .main-area,.theme-dark .topbar,.theme-dark .sidebar,.theme-dark .calendar-card,.theme-dark .agenda-card,.theme-dark .stat-card{background:#202235;border-color:#34364a}
+.theme-dark .brand,.theme-dark .breadcrumb b,.theme-dark .welcome-row h1,.theme-dark .calendar-toolbar h2,.theme-dark .agenda-heading h2,.theme-dark .stat-number,.theme-dark .stat-main strong{color:#f0effb}
+.theme-dark .nav-item,.theme-dark .category-nav-item,.theme-dark .welcome-subtitle,.theme-dark .sync-status,.theme-dark .top-signin,.theme-dark .calendar-legend,.theme-dark .agenda-date strong,.theme-dark .agenda-task-main strong{color:#b7b8ca}
+.theme-dark .month-cell,.theme-dark .week-column,.theme-dark .agenda-search,.theme-dark .agenda-task,.theme-dark .calendar-footer{border-color:#393b50}.theme-dark .month-cell,.theme-dark .agenda-search input{color:#e3e3ef;background:#202235}.theme-dark .sidebar-tip,.theme-dark .stat-highlight{background:#292841;border-color:#393651}.theme-dark .calendar-toolbar,.theme-dark .agenda-heading,.theme-dark .calendar-footer{border-color:#393b50}
+@media(max-width:600px){.settings-modal{padding:20px 17px}.settings-modal .modal-top{top:-20px}}
