@@ -439,3 +439,22 @@ h1, h2, h3, p { margin-top: 0; }
 .marketing-footer .marketing-brand {font-size:17px}.marketing-footer .marketing-brand-icon{width:28px;height:28px}
 @media(max-width:900px){.marketing-hero{grid-template-columns:1fr;padding-top:65px}.hero-copy{max-width:600px}.hero-visual{max-width:650px;width:100%;margin:auto}.feature-grid{grid-template-columns:1fr 1fr}.feature-large{grid-column:span 2}.how-section{grid-template-columns:1fr;gap:25px}.pricing-section{grid-template-columns:1fr 350px;gap:35px}}
 @media(max-width:640px){.marketing-nav{height:68px;padding:0 17px}.marketing-menu-toggle{display:block;margin-left:auto;margin-right:10px}.marketing-links{display:none;position:absolute;top:62px;left:12px;right:12px;padding:17px;border:1px solid #efedf4;border-radius:11px;background:#fff;box-shadow:0 15px 30px #29283b12}.marketing-links-open{display:grid;gap:17px}.marketing-nav-actions{gap:10px}.marketing-login{font-size:10px}.marketing-nav-cta{min-height:35px;padding:0 10px;font-size:9px}.marketing-brand{font-size:19px}.marketing-brand-icon{width:30px;height:30px}.marketing-hero{padding:54px 19px 47px;gap:25px}.hero-copy h1{font-size:52px;letter-spacing:-3.5px}.hero-description{font-size:12px}.hero-actions{gap:8px}.hero-primary{min-height:44px;padding:0 13px;font-size:10px}.hero-secondary{font-size:10px}.hero-visual{padding:15px 0 25px}.preview-content{grid-template-columns:94px 1fr;min-height:275px}.preview-sidebar{padding:12px 6px;font-size:8px}.preview-main{padding:15px 10px}.preview-heading{font-size:12px}.preview-stats{gap:4px}.preview-stats>div{padding:7px 5px}.preview-stats small{font-size:6px}.preview-stats b{font-size:14px}.preview-calendar{padding:8px;margin-top:10px}.preview-event{font-size:6px;padding:6px 2px}.floating-note{right:-4px}.marketing-strip{gap:12px;min-height:55px;font-size:6px;letter-spacing:.8px}.marketing-section,.how-section,.pricing-section{padding:73px 20px}.section-intro h2,.how-heading h2,.pricing-section h2{font-size:35px}.feature-grid{grid-template-columns:1fr}.feature-large{grid-column:auto}.feature-card{min-height:220px}.how-steps{grid-template-columns:1fr;gap:18px}.how-steps article>b{margin-bottom:12px}.pricing-section{grid-template-columns:1fr;gap:22px}.pricing-card{padding:23px}.final-cta{margin:0 15px 40px;padding:30px 23px;align-items:flex-start;flex-direction:column}.final-cta h2{font-size:30px}.marketing-footer{padding:22px 18px;flex-wrap:wrap;gap:14px}.marketing-footer>span:nth-child(2){display:none}}
+
+/* First-login onboarding */
+.onboarding-backdrop { z-index: 80; }
+.onboarding-modal { position:relative; width:min(100%,440px); padding:34px; border:1px solid #eeedf5; border-radius:18px; background:#fff; box-shadow:0 25px 80px #25243e30; animation:modal-in .2s ease-out; }
+.onboarding-art { position:relative;width:88px;height:88px;margin:0 auto 24px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#f1eeff 0,#faf9ff 66%,#fff 68%); }
+.onboarding-orbit {position:absolute;border:1px solid #e7e2ff;border-radius:50%}.orbit-one{inset:4px}.orbit-two{inset:-7px;border-style:dashed;opacity:.8}
+.onboarding-spark {width:48px;height:48px;display:grid;place-items:center;border-radius:15px;color:#fff;background:linear-gradient(145deg,#9487f5,#6c5cdb);box-shadow:0 8px 20px #7566e944}
+.onboarding-art-check {position:absolute;right:0;bottom:2px;width:25px;height:25px;display:grid;place-items:center;border:3px solid white;border-radius:50%;color:#fff;background:#5db78c}
+.onboarding-modal>.eyebrow {display:block;text-align:center}
+.onboarding-modal h2 {margin:9px 0 8px;color:#303047;text-align:center;font:800 23px "Manrope",sans-serif;letter-spacing:-.8px}
+.onboarding-modal>.muted-copy {margin:0 0 24px;color:#9999a8;text-align:center;font-size:11px;line-height:1.7}
+.onboarding-modal .field-label {display:block;margin:15px 0 7px;color:#67687c;font-size:10px;font-weight:700}
+.onboarding-modal .field-input {width:100%;min-height:43px;padding:0 12px;border:1px solid #e9e9f0;border-radius:8px;color:#424359;background:#fff;font-size:11px}
+.onboarding-modal .field-input:focus {border-color:#a69cf0;outline:3px solid #efedff}
+.onboarding-submit {width:100%;min-height:44px;margin-top:22px}
+.onboarding-submit:disabled {opacity:.65;cursor:wait}
+.onboarding-foot {display:flex;align-items:center;justify-content:center;gap:7px;margin-top:15px;color:#a3a2b0;font-size:9px}
+.lock-icon {font-size:7px;color:#65b38e}
+@media(max-width:520px){.onboarding-modal{padding:25px 20px;border-radius:15px}.onboarding-modal h2{font-size:20px}}
