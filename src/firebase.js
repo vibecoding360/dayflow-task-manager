@@ -40,31 +40,33 @@ export async function ensurePersonalWorkspace(user) {
   const profile = userSnapshot.exists() ? userSnapshot.data() : {};
   const existingWorkspace = workspaceSnapshot.exists() ? workspaceSnapshot.data() : {};
 
-  await Promise.all([
-    setDoc(userRef, {
-      email: user.email || "",
-      displayName: user.displayName || profile.displayName || "",
-      defaultWorkspaceId: uid,
-      updatedAt: serverTimestamp(),
-      ...(!userSnapshot.exists() ? { createdAt: serverTimestamp() } : {}),
-    }, { merge: true }),
-    setDoc(workspaceRef, {
-      name: existingWorkspace.name || "Personal workspace",
-      ownerId: uid,
-      type: "personal",
-      plan: existingWorkspace.plan || "free",
-      status: "active",
-      updatedAt: serverTimestamp(),
-      ...(!workspaceSnapshot.exists() ? { createdAt: serverTimestamp() } : {}),
-    }, { merge: true }),
-    setDoc(memberRef, {
-      userId: uid,
-      role: "owner",
-      status: "active",
-      updatedAt: serverTimestamp(),
-      ...(!workspaceSnapshot.exists() ? { joinedAt: serverTimestamp() } : {}),
-    }, { merge: true }),
-  ]);
+  // Keep these writes ordered: the membership rule checks that the
+  // workspace already exists before allowing its first owner membership.
+  await setDoc(userRef, {
+    email: user.email || "",
+    displayName: user.displayName || profile.displayName || "",
+    defaultWorkspaceId: uid,
+    updatedAt: serverTimestamp(),
+    ...(!userSnapshot.exists() ? { createdAt: serverTimestamp() } : {}),
+  }, { merge: true });
+
+  await setDoc(workspaceRef, {
+    name: existingWorkspace.name || "Personal workspace",
+    ownerId: uid,
+    type: "personal",
+    plan: existingWorkspace.plan || "free",
+    status: "active",
+    updatedAt: serverTimestamp(),
+    ...(!workspaceSnapshot.exists() ? { createdAt: serverTimestamp() } : {}),
+  }, { merge: true });
+
+  await setDoc(memberRef, {
+    userId: uid,
+    role: "owner",
+    status: "active",
+    updatedAt: serverTimestamp(),
+    ...(!workspaceSnapshot.exists() ? { joinedAt: serverTimestamp() } : {}),
+  }, { merge: true });
 
   return {
     id: uid,
