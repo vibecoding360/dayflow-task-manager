@@ -93,6 +93,54 @@ function EmptyState({ onAdd }) {
   return <div className="day-empty"><div className="empty-illustration"><CalendarDays size={22} /></div><h3>A day with room to breathe</h3><p>Nothing scheduled here yet. Add a task and give your day a little shape.</p><button className="btn-primary" onClick={onAdd}><Plus size={16} /> Add a task</button></div>;
 }
 
+
+function MarketingPage({ onStart, onSignIn, onDemo }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return <div className="marketing-shell">
+    <header className="marketing-nav">
+      <a className="marketing-brand" href="#home" aria-label="DayFlow home"><span className="marketing-brand-icon"><Sparkles size={19} /></span>dayflow<span>.</span></a>
+      <button className="marketing-menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation"><Menu size={20} /></button>
+      <nav className={menuOpen ? "marketing-links marketing-links-open" : "marketing-links"}>
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+      </nav>
+      <div className="marketing-nav-actions"><button className="marketing-login" onClick={onSignIn}>Log in</button><button className="marketing-nav-cta" onClick={onStart}>Get started <ArrowRight size={15} /></button></div>
+    </header>
+    <main id="home">
+      <section className="marketing-hero">
+        <div className="hero-copy">
+          <div className="hero-badge"><span /> A calmer way to get things done</div>
+          <h1>Make room for<br />what <span>matters.</span></h1>
+          <p className="hero-description">Your plans, tasks and goals in one clear space. DayFlow helps you turn busy days into days that feel a little more in control.</p>
+          <div className="hero-actions"><button className="hero-primary" onClick={onStart}>Start planning for free <ArrowRight size={17} /></button><button className="hero-secondary" onClick={onDemo}><span className="demo-play">▶</span> Explore the planner</button></div>
+          <div className="hero-trust"><div className="trust-avatars"><span>J</span><span>A</span><span>M</span><span>+</span></div><span>One thoughtful plan at a time.</span></div>
+        </div>
+        <div className="hero-visual" aria-label="Preview of the DayFlow calendar">
+          <div className="visual-glow" />
+          <div className="preview-window">
+            <div className="preview-top"><div className="preview-dots"><i/><i/><i/></div><span>PERSONAL WORKSPACE</span><span className="preview-user">D</span></div>
+            <div className="preview-content">
+              <div className="preview-sidebar"><div className="preview-logo"><Sparkles size={14}/> dayflow.</div><div className="preview-nav-active"><CalendarDays size={13}/> Calendar</div><div><ListTodo size={13}/> My tasks</div><div><Flag size={13}/> Goals</div><div className="preview-side-label">CATEGORIES</div><div><i className="preview-dot dot-purple"/> Study</div><div><i className="preview-dot dot-blue"/> Work</div><div><i className="preview-dot dot-orange"/> Personal</div></div>
+              <div className="preview-main"><div className="preview-greeting">YOUR WEEK AT A GLANCE</div><div className="preview-heading">A little progress, every day.</div><div className="preview-stats"><div><small>Tasks planned</small><b>12</b></div><div><small>Completed</small><b>08</b></div><div><small>Focus score</small><b>84%</b></div></div><div className="preview-calendar"><div className="preview-month"><b>November 2026</b><span>‹　›</span></div><div className="preview-days">{["MON","TUE","WED","THU","FRI","SAT","SUN"].map((d,i)=><div key={d}><small>{d}</small><b className={i===2?"preview-today":""}>{9+i}</b>{i===0||i===2||i===3||i===5?<i/>:null}</div>)}</div><div className="preview-events"><div className="preview-event event-purple">Study · 9:00</div><div className="preview-event event-blue">Project work · 11:30</div><div className="preview-event event-orange">Personal · 16:00</div></div></div></div>
+            </div>
+          </div>
+          <div className="floating-note"><span><Check size={14}/></span><div><b>Small win unlocked</b><small>One task at a time.</small></div></div>
+        </div>
+      </section>
+      <div className="marketing-strip"><span>LESS CLUTTER</span><i/><span>MORE CLARITY</span><i/><span>YOUR OWN PACE</span><i/><span>ROOM TO GROW</span></div>
+      <section className="marketing-section" id="features"><div className="section-intro"><span className="marketing-kicker">A BETTER WAY TO PLAN</span><h2>Everything in its<br/><span>right place.</span></h2><p>Simple tools that work together, so you can spend less time organizing and more time doing.</p></div>
+        <div className="feature-grid"><article className="feature-card feature-large"><div className="feature-icon feature-lilac"><CalendarDays size={21}/></div><h3>Your calendar, your way</h3><p>See your month, week or day. Add tasks with dates, times and priorities, then move through your schedule with ease.</p><div className="mini-week"><span>MON <b>09</b></span><span className="mini-week-active">TUE <b>10</b></span><span>WED <b>11</b></span><span>THU <b>12</b></span><span>FRI <b>13</b></span></div></article>
+          <article className="feature-card"><div className="feature-icon feature-blue"><Cloud size={21}/></div><h3>Your plans stay with you</h3><p>Sign in to securely sync your personal tasks across devices with Firebase.</p><div className="feature-sync"><Cloud size={17}/> Synced to your workspace <CheckCircle2 size={16}/></div></article>
+          <article className="feature-card"><div className="feature-icon feature-peach"><Sparkles size={21}/></div><h3>Progress you can feel</h3><p>Keep an eye on daily completion and upcoming priorities without a crowded dashboard.</p><div className="feature-progress"><span><b/></span><strong>68%</strong></div></article>
+        </div>
+      </section>
+      <section className="how-section" id="how-it-works"><div className="how-heading"><span className="marketing-kicker">START SMALL. BUILD MOMENTUM.</span><h2>A plan that feels<br/><span>like yours.</span></h2></div><div className="how-steps"><article><b>01</b><h3>Make your space</h3><p>Create your account and get a personal workspace of your own.</p></article><article><b>02</b><h3>Put it on the calendar</h3><p>Add what matters, choose a time and keep priorities clear.</p></article><article><b>03</b><h3>Find your flow</h3><p>Check things off, see your progress and adjust as life happens.</p></article></div></section>
+      <section className="pricing-section" id="pricing"><div><span className="marketing-kicker">SIMPLE TO START</span><h2>Good planning<br/><span>starts here.</span></h2><p>Start with the essentials. DayFlow is being built to grow with the way you work.</p></div><div className="pricing-card"><span className="pricing-label">PERSONAL</span><div className="pricing-price">Free <small>to get started</small></div><p>Everything you need to bring a little clarity to your day.</p><ul><li><Check size={15}/> Personal workspace</li><li><Check size={15}/> Month, week and day calendar</li><li><Check size={15}/> Tasks, notes and priorities</li><li><Check size={15}/> Secure cloud sync</li></ul><button onClick={onStart}>Create your free account <ArrowRight size={16}/></button><small className="pricing-foot">Paid plans and team features are planned for a future release.</small></div></section>
+      <section className="final-cta"><div><span className="marketing-kicker">YOUR NEXT CHAPTER, ONE TASK AT A TIME</span><h2>Make today<br/>feel a little lighter.</h2></div><button onClick={onStart}>Get started with DayFlow <ArrowRight size={17}/></button></section>
+    </main>
+    <footer className="marketing-footer"><a className="marketing-brand" href="#home"><span className="marketing-brand-icon"><Sparkles size={17}/></span>dayflow<span>.</span></a><span>Thoughtful planning for real life.</span><span>© 2026 DayFlow</span></footer>
+  </div>;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -109,6 +157,7 @@ export default function App() {
   const [filter, setFilter] = useState("All");
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -209,6 +258,8 @@ export default function App() {
   }
   function openNewTask(date = selectedDate) { setModal({ date }); }
   function editTask(task) { setModal({ task, date: fromKey(task.date) }); }
+
+  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
 
   return <div className="app-shell">
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
