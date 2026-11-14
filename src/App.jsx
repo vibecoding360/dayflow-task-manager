@@ -505,7 +505,6 @@ export default function App() {
               {upcoming.length ? upcoming.slice(0, 3).map((t) => <button key={t.id} className="upcoming-item" onClick={() => { chooseDate(fromKey(t.date)); editTask(t); }}><span className={"upcoming-marker " + COLORS[t.category]} /><span className="upcoming-copy"><strong>{t.title}</strong><small>{sameDay(fromKey(t.date), today) ? "Today" : fromKey(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {t.startTime || "Anytime"}</small></span><ChevronRight size={15} /></button>) : <p className="no-upcoming">You're all caught up. Nice work.</p>}
             </div>
           </aside>
-        </section>
         </section>}
         {view !== "timer" && <div className="bottom-note"><Sparkles size={14} /><span>Make space for what matters. The rest can wait.</span><span className="note-right">DAYFLOW · YOUR PERSONAL PLANNER</span></div>}
       </section>
