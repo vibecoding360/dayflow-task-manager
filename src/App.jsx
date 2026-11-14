@@ -9,9 +9,10 @@ import {
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged
+  onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup
 } from "firebase/auth";
-import { auth, db, firebaseReady } from "./firebase";
+import { auth, db, storage, firebaseReady, ensurePersonalWorkspace } from "./firebase";
+import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 
 const CATEGORIES = ["Study", "Work", "Personal", "Health"];
 const PRIORITIES = ["Low", "Medium", "High"];
@@ -47,11 +48,13 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
   const [endTime, setEndTime] = useState(initial?.endTime || "10:00");
   const [priority, setPriority] = useState(initial?.priority || "Medium");
   const [category, setCategory] = useState(initial?.category || "Study");
+  const [repeat, setRepeat] = useState(initial?.repeat || "none");
+  const [reminder, setReminder] = useState(initial?.reminder || "none");
   const [error, setError] = useState("");
   function submit(e) {
     e.preventDefault();
     if (!title.trim()) { setError("Give your task a name first."); return; }
-    onSave({ title: title.trim(), notes: notes.trim(), date: taskDate, startTime, endTime, priority, category });
+    onSave({ title: title.trim(), notes: notes.trim(), date: taskDate, startTime, endTime, priority, category, repeat, reminder });
   }
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
     <form className="task-modal" onSubmit={submit}>
@@ -64,6 +67,7 @@ function TaskModal({ initial, date, onClose, onSave, onDelete }) {
         <div><label className="field-label">Start time</label><input className="field-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
         <div><label className="field-label">End time</label><input className="field-input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
       </div>
+      <div className="form-grid"><div><label className="field-label">Repeat</label><select className="field-input" value={repeat} onChange={(e)=>setRepeat(e.target.value)}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div><div><label className="field-label">Reminder</label><select className="field-input" value={reminder} onChange={(e)=>setReminder(e.target.value)}><option value="none">No reminder</option><option value="0">At task time</option><option value="5">5 minutes before</option><option value="15">15 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option></select></div></div>
       <label className="field-label">Category</label><div className="category-options">{CATEGORIES.map((item) => <button type="button" key={item} onClick={() => setCategory(item)} className={"category-choice tone-" + COLORS[item] + (category === item ? " selected" : "")}><span className="task-dot" />{item}</button>)}</div>
       {error && <p className="form-error">{error}</p>}
       <div className="modal-actions">{initial && <button type="button" className="delete-button" onClick={() => onDelete(initial.id)}><Trash2 size={16} /> Delete</button>}<div className="actions-spacer" /><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><button type="submit" className="btn-primary"><Check size={16} /> {initial ? "Save changes" : "Add task"}</button></div>
@@ -75,11 +79,13 @@ function AuthModal({ onClose, onSubmit, busy, error }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <form className="auth-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(email, password, mode); }}>
+    <form className="auth-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(email, password, mode, fullName); }}>
       <div className="auth-mark"><Sparkles size={21} /></div><IconButton label="Close" onClick={onClose} className="auth-close"><X size={18} /></IconButton>
       <span className="eyebrow">YOUR PLANS, EVERYWHERE</span><h2>{mode === "signin" ? "Welcome back" : "Create your account"}</h2>
       <p className="muted-copy">Sign in to sync your tasks securely across your devices.</p>
+      {mode === "signup" && <><label className="field-label">Your name</label><input className="field-input" type="text" required minLength="2" maxLength="60" placeholder="How should we call you?" value={fullName} onChange={(e) => setFullName(e.target.value)} /></>}
       <label className="field-label">Email address</label><input className="field-input" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
       <label className="field-label">Password</label><input className="field-input" type="password" minLength="6" required placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
       {error && <p className="form-error">{error}</p>}
@@ -89,8 +95,93 @@ function AuthModal({ onClose, onSubmit, busy, error }) {
   </div>;
 }
 
+
+function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSubmit, busy, error }) {
+  return <div className="modal-backdrop onboarding-backdrop">
+    <form className="onboarding-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+      <div className="onboarding-art"><div className="onboarding-orbit orbit-one"/><div className="onboarding-orbit orbit-two"/><div className="onboarding-spark"><Sparkles size={25}/></div><span className="onboarding-art-check"><Check size={15}/></span></div>
+      <span className="eyebrow">WELCOME TO DAYFLOW</span><h2>Let's make this space yours.</h2>
+      <p className="muted-copy">A couple of details help us set up your personal planning space.</p>
+      <label className="field-label">What should we call you?</label>
+      <input className="field-input" required minLength="2" maxLength="60" placeholder="Your name" value={name} onChange={(e)=>setName(e.target.value)}/>
+      <label className="field-label">Name your workspace</label>
+      <input className="field-input" required minLength="2" maxLength="60" placeholder="e.g. Personal workspace" value={workspaceName} onChange={(e)=>setWorkspaceName(e.target.value)}/>
+      {error && <p className="form-error">{error}</p>}
+      <button className="btn-primary onboarding-submit" disabled={busy}>{busy ? "Setting up your space…" : "Create my workspace"} <ArrowRight size={17}/></button>
+      <span className="onboarding-foot"><span className="lock-icon">●</span> Your workspace is private to your account.</span>
+    </form>
+  </div>;
+}
+
+
+function SettingsModal({user,workspace,onClose,onSave,onPhotoUpload,onRequestReminderPermission,saving,error,theme,setTheme,notifications,setNotifications}) {
+ const [name,setName]=useState(user?.displayName||""); const [space,setSpace]=useState(workspace?.name||"Personal workspace");
+ const [photoBusy,setPhotoBusy]=useState(false); const [photoError,setPhotoError]=useState("");
+ async function photoChange(e){const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){setPhotoError("Choose an image file.");return;}if(file.size>3*1024*1024){setPhotoError("Image must be smaller than 3 MB.");return;}setPhotoBusy(true);setPhotoError("");try{await onPhotoUpload(file);}catch{setPhotoError("Upload failed. Check Firebase Storage setup and rules.");}finally{setPhotoBusy(false);e.target.value="";}}
+ return <div className="modal-backdrop settings-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><form className="settings-modal" onSubmit={e=>{e.preventDefault();onSave(name,space);}}>
+ <div className="modal-top"><div><span className="eyebrow">PREFERENCES</span><h2>Settings</h2></div><IconButton label="Close settings" onClick={onClose}><X size={19}/></IconButton></div>
+ <section className="settings-section"><h3>Profile</h3><div className="settings-profile"><div className="settings-avatar">{user?.photoURL?<img src={user.photoURL} alt="Profile"/>:(name.trim()[0]||user?.email?.[0]||"D").toUpperCase()}</div><div><label className="settings-upload">{photoBusy?"Uploading…":"Change photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={photoChange} disabled={photoBusy}/></label><small>JPG, PNG or WebP · Max 3 MB</small></div></div>{photoError&&<p className="form-error">{photoError}</p>}
+ <label className="field-label">Display name</label><input className="field-input" value={name} onChange={e=>setName(e.target.value)} required minLength="2" maxLength="60"/>
+ <label className="field-label">Email address</label><input className="field-input" value={user?.email||""} disabled/></section>
+ <section className="settings-section"><h3>Workspace</h3><label className="field-label">Workspace name</label><input className="field-input" value={space} onChange={e=>setSpace(e.target.value)} required minLength="2" maxLength="60"/></section>
+ <section className="settings-section"><h3>Appearance</h3><div className="settings-choice-row"><div><b>Color theme</b><small>Choose how DayFlow looks on this device.</small></div><select className="field-input settings-select" value={theme} onChange={e=>setTheme(e.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div></section>
+ <section className="settings-section"><h3>Notifications</h3><label className="settings-toggle"><span><b>Task reminders</b><small>Browser alerts while DayFlow is open.</small></span><input type="checkbox" checked={notifications} onChange={async e=>{if(e.target.checked){if("Notification" in window&&Notification.permission==="default"){const p=await Notification.requestPermission();setNotifications(p==="granted");}else setNotifications("Notification" in window&&Notification.permission==="granted");}else setNotifications(false);}}/></label><button type="button" className="settings-permission" onClick={onRequestReminderPermission}>Enable browser notifications</button></section>
+ {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="btn-quiet" onClick={onClose}>Cancel</button><div className="actions-spacer"/><button className="btn-primary" disabled={saving}>{saving?"Saving…":"Save settings"} <Check size={16}/></button></div>
+ </form></div>;
+}
+
 function EmptyState({ onAdd }) {
   return <div className="day-empty"><div className="empty-illustration"><CalendarDays size={22} /></div><h3>A day with room to breathe</h3><p>Nothing scheduled here yet. Add a task and give your day a little shape.</p><button className="btn-primary" onClick={onAdd}><Plus size={16} /> Add a task</button></div>;
+}
+
+
+function GoogleMark({ size = 18 }) { return <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91c-.58 2.96-2.26 5.48-4.73 7.18l7.63 5.91c4.45-4.11 7.17-10.17 7.17-17.56z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.89l-7.63-5.91c-2.12 1.42-4.84 2.26-8.27 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>; }
+
+function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return <div className="marketing-shell">
+    <header className="marketing-nav">
+      <a className="marketing-brand" href="#home" aria-label="DayFlow home"><span className="marketing-brand-icon"><Sparkles size={19} /></span>dayflow<span>.</span></a>
+      <button className="marketing-menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation"><Menu size={20} /></button>
+      <nav className={menuOpen ? "marketing-links marketing-links-open" : "marketing-links"}>
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+      </nav>
+      <div className="marketing-nav-actions"><button className="marketing-google-login" onClick={onGoogleSignIn} aria-label="Continue with Google" title="Continue with Google"><GoogleMark size={19}/></button><button className="marketing-login" onClick={onSignIn}>Sign in</button><button className="marketing-nav-cta" onClick={onStart}>Get started <ArrowRight size={15} /></button></div>
+    </header>
+    <main id="home">
+      <section className="marketing-hero">
+        <div className="hero-copy">
+          <div className="hero-badge"><span /> A calmer way to get things done</div>
+          <h1>Make room for<br />what <span>matters.</span></h1>
+          <p className="hero-description">Your plans, tasks and goals in one clear space. DayFlow helps you turn busy days into days that feel a little more in control.</p>
+          <div className="hero-actions"><button className="hero-primary" onClick={onStart}>Start planning for free <ArrowRight size={17} /></button><button className="hero-secondary" onClick={onDemo}><span className="demo-play">▶</span> Explore the planner</button></div>
+          <div className="hero-trust"><div className="trust-avatars"><span>J</span><span>A</span><span>M</span><span>+</span></div><span>One thoughtful plan at a time.</span></div>
+        </div>
+        <div className="hero-visual" aria-label="Preview of the DayFlow calendar">
+          <div className="visual-glow" />
+          <div className="preview-window">
+            <div className="preview-top"><div className="preview-dots"><i/><i/><i/></div><span>PERSONAL WORKSPACE</span><span className="preview-user">D</span></div>
+            <div className="preview-content">
+              <div className="preview-sidebar"><div className="preview-logo"><Sparkles size={14}/> dayflow.</div><div className="preview-nav-active"><CalendarDays size={13}/> Calendar</div><div><ListTodo size={13}/> My tasks</div><div><Flag size={13}/> Goals</div><div className="preview-side-label">CATEGORIES</div><div><i className="preview-dot dot-purple"/> Study</div><div><i className="preview-dot dot-blue"/> Work</div><div><i className="preview-dot dot-orange"/> Personal</div></div>
+              <div className="preview-main"><div className="preview-greeting">YOUR WEEK AT A GLANCE</div><div className="preview-heading">A little progress, every day.</div><div className="preview-stats"><div><small>Tasks planned</small><b>12</b></div><div><small>Completed</small><b>08</b></div><div><small>Focus score</small><b>84%</b></div></div><div className="preview-calendar"><div className="preview-month"><b>November 2026</b><span>‹　›</span></div><div className="preview-days">{["MON","TUE","WED","THU","FRI","SAT","SUN"].map((d,i)=><div key={d}><small>{d}</small><b className={i===2?"preview-today":""}>{9+i}</b>{i===0||i===2||i===3||i===5?<i/>:null}</div>)}</div><div className="preview-events"><div className="preview-event event-purple">Study · 9:00</div><div className="preview-event event-blue">Project work · 11:30</div><div className="preview-event event-orange">Personal · 16:00</div></div></div></div>
+            </div>
+          </div>
+          <div className="floating-note"><span><Check size={14}/></span><div><b>Small win unlocked</b><small>One task at a time.</small></div></div>
+        </div>
+      </section>
+      <div className="marketing-strip"><span>LESS CLUTTER</span><i/><span>MORE CLARITY</span><i/><span>YOUR OWN PACE</span><i/><span>ROOM TO GROW</span></div>
+      <section className="marketing-section" id="features"><div className="section-intro"><span className="marketing-kicker">A BETTER WAY TO PLAN</span><h2>Everything in its<br/><span>right place.</span></h2><p>Simple tools that work together, so you can spend less time organizing and more time doing.</p></div>
+        <div className="feature-grid"><article className="feature-card feature-large"><div className="feature-icon feature-lilac"><CalendarDays size={21}/></div><h3>Your calendar, your way</h3><p>See your month, week or day. Add tasks with dates, times and priorities, then move through your schedule with ease.</p><div className="mini-week"><span>MON <b>09</b></span><span className="mini-week-active">TUE <b>10</b></span><span>WED <b>11</b></span><span>THU <b>12</b></span><span>FRI <b>13</b></span></div></article>
+          <article className="feature-card"><div className="feature-icon feature-blue"><Cloud size={21}/></div><h3>Your plans stay with you</h3><p>Sign in to securely sync your personal tasks across devices with Firebase.</p><div className="feature-sync"><Cloud size={17}/> Synced to your workspace <CheckCircle2 size={16}/></div></article>
+          <article className="feature-card"><div className="feature-icon feature-peach"><Sparkles size={21}/></div><h3>Progress you can feel</h3><p>Keep an eye on daily completion and upcoming priorities without a crowded dashboard.</p><div className="feature-progress"><span><b/></span><strong>68%</strong></div></article>
+        </div>
+      </section>
+      <section className="how-section" id="how-it-works"><div className="how-heading"><span className="marketing-kicker">START SMALL. BUILD MOMENTUM.</span><h2>A plan that feels<br/><span>like yours.</span></h2></div><div className="how-steps"><article><b>01</b><h3>Make your space</h3><p>Create your account and get a personal workspace of your own.</p></article><article><b>02</b><h3>Put it on the calendar</h3><p>Add what matters, choose a time and keep priorities clear.</p></article><article><b>03</b><h3>Find your flow</h3><p>Check things off, see your progress and adjust as life happens.</p></article></div></section>
+      <section className="pricing-section" id="pricing"><div><span className="marketing-kicker">SIMPLE TO START</span><h2>Good planning<br/><span>starts here.</span></h2><p>Start with the essentials. DayFlow is being built to grow with the way you work.</p></div><div className="pricing-card"><span className="pricing-label">PERSONAL</span><div className="pricing-price">Free <small>to get started</small></div><p>Everything you need to bring a little clarity to your day.</p><ul><li><Check size={15}/> Personal workspace</li><li><Check size={15}/> Month, week and day calendar</li><li><Check size={15}/> Tasks, notes and priorities</li><li><Check size={15}/> Secure cloud sync</li></ul><button onClick={onStart}>Create your free account <ArrowRight size={16}/></button><small className="pricing-foot">Paid plans and team features are planned for a future release.</small></div></section>
+      <section className="final-cta"><div><span className="marketing-kicker">YOUR NEXT CHAPTER, ONE TASK AT A TIME</span><h2>Make today<br/>feel a little lighter.</h2></div><button onClick={onStart}>Get started with DayFlow <ArrowRight size={17}/></button></section>
+    </main>
+    <footer className="marketing-footer"><a className="marketing-brand" href="#home"><span className="marketing-brand-icon"><Sparkles size={17}/></span>dayflow<span>.</span></a><span>Thoughtful planning for real life.</span><span>© 2026 DayFlow</span></footer>
+  </div>;
 }
 
 export default function App() {
@@ -100,6 +191,8 @@ export default function App() {
   const [view, setView] = useState("month");
   const [modal, setModal] = useState(null);
   const [authUser, setAuthUser] = useState(null);
+  const [workspace, setWorkspace] = useState(null);
+  const [workspaceError, setWorkspaceError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -107,13 +200,43 @@ export default function App() {
   const [filter, setFilter] = useState("All");
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("Personal workspace");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [settingsBusy,setSettingsBusy]=useState(false);
+  const [settingsError,setSettingsError]=useState("");
+  const [theme,setTheme]=useState(()=>localStorage.getItem("dayflow-theme")||"light");
+  const [notifications,setNotifications]=useState(()=>localStorage.getItem("dayflow-notifications")!=="off");
 
   useEffect(() => {
     if (!firebaseReady) {
       try { setTasks(JSON.parse(localStorage.getItem("dayflow-tasks") || "[]")); } catch { setTasks([]); }
       return;
     }
-    return onAuthStateChanged(auth, (user) => setAuthUser(user));
+    return onAuthStateChanged(auth, async (user) => {
+      setAuthUser(user);
+      setWorkspace(null);
+      setWorkspaceError("");
+      if (!user) return;
+      try {
+        const personalWorkspace = await ensurePersonalWorkspace(user);
+        setWorkspace(personalWorkspace);
+        const needsOnboarding = !user.displayName?.trim() || localStorage.getItem("dayflow-onboarding-pending") === "1";
+        if (needsOnboarding) {
+          setProfileName(user.displayName || "");
+          setWorkspaceName(personalWorkspace.name || "Personal workspace");
+          setOnboardingOpen(true);
+          localStorage.removeItem("dayflow-onboarding-pending");
+        }
+      } catch (error) {
+        console.error("Workspace setup failed:", error);
+        setWorkspaceError("Your account is signed in, but workspace setup needs attention.");
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -129,6 +252,14 @@ export default function App() {
   useEffect(() => {
     if (!authUser) localStorage.setItem("dayflow-tasks", JSON.stringify(tasks));
   }, [tasks, authUser]);
+
+  useEffect(()=>{localStorage.setItem("dayflow-theme",theme);},[theme]);
+  useEffect(()=>{localStorage.setItem("dayflow-notifications",notifications?"on":"off");},[notifications]);
+  useEffect(()=>{
+    if(!notifications || !("Notification" in window) || Notification.permission!=="granted") return;
+    const checkReminders=()=>{const now=Date.now();tasks.forEach(task=>{if(task.completed||!task.reminder||task.reminder==="none"||!task.startTime)return;const due=new Date(task.date+"T"+task.startTime).getTime()-Number(task.reminder)*60000;const key="dayflow-reminded-"+task.id+"-"+task.date;if(now>=due&&now<due+60000&&!localStorage.getItem(key)){new Notification("DayFlow reminder",{body:task.title+" starts "+(Number(task.reminder)===0?"now":"in "+task.reminder+" minutes")});localStorage.setItem(key,"1");}});};
+    checkReminders();const timer=window.setInterval(checkReminders,30000);return ()=>window.clearInterval(timer);
+  },[tasks,notifications]);
 
   function notify(message) {
     setToast(message);
@@ -153,14 +284,20 @@ export default function App() {
 
   async function saveTask(data) {
     if (modal?.task) {
-      if (authUser && firebaseReady) await updateDoc(doc(db, "users", authUser.uid, "tasks", modal.task.id), data);
-      else setTasks((items) => items.map((t) => t.id === modal.task.id ? { ...t, ...data } : t));
+      const updateData={...data,repeat:"none"};
+      if(authUser&&firebaseReady) await updateDoc(doc(db,"users",authUser.uid,"tasks",modal.task.id),updateData);
+      else setTasks(items=>items.map(t=>t.id===modal.task.id?{...t,...updateData}:t));
       notify("Task updated");
     } else {
-      const task = { ...data, completed: false, createdAt: new Date().toISOString() };
-      if (authUser && firebaseReady) await addDoc(collection(db, "users", authUser.uid, "tasks"), { ...task, createdAt: serverTimestamp() });
-      else setTasks((items) => [...items, { ...task, id: makeId() }]);
-      notify("Task added to your calendar");
+      const dates=[data.date];
+      if(data.repeat!=="none"){
+        const base=fromKey(data.date);
+        for(let i=1;i<12;i++){const next=data.repeat==="daily"?addDays(base,i):data.repeat==="weekly"?addDays(base,i*7):new Date(base.getFullYear(),base.getMonth()+i,Math.min(base.getDate(),new Date(base.getFullYear(),base.getMonth()+i+1,0).getDate()));dates.push(dateKey(next));}
+      }
+      const records=dates.map((date,index)=>({...data,date,repeat:data.repeat==="none"?"none":data.repeat,seriesId:data.repeat==="none"?null:(modal?.seriesId||makeId()),occurrence:index,completed:false,createdAt:new Date().toISOString()}));
+      if(authUser&&firebaseReady){for(const record of records){const {repeat,...persisted}=record;await addDoc(collection(db,"users",authUser.uid,"tasks"),{...persisted,createdAt:serverTimestamp()});}}
+      else setTasks(items=>[...items,...records.map(task=>({...task,id:makeId()}))]);
+      notify(data.repeat==="none"?"Task added to your calendar":"12 recurring tasks added");
     }
     setModal(null);
   }
@@ -177,15 +314,87 @@ export default function App() {
     else setTasks((items) => items.map((t) => t.id === task.id ? { ...t, completed } : t));
   }
 
-  async function authenticate(email, password, mode) {
+  async function signInWithGoogle() {
+    if (!firebaseReady || !auth) {
+      setAuthError("Google sign-in is unavailable until Firebase is configured.");
+      setAuthOpen(true);
+      return;
+    }
     setAuthBusy(true); setAuthError("");
     try {
-      if (mode === "signup") await createUserWithEmailAndPassword(auth, email, password);
-      else await signInWithEmailAndPassword(auth, email, password);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(auth, provider);
+      setAuthOpen(false);
+      notify("Signed in with Google — your tasks will sync.");
+    } catch (e) {
+      if (e.code === "auth/popup-closed-by-user") {
+        setAuthError("The Google sign-in window was closed before completing.");
+      } else if (e.code === "auth/account-exists-with-different-credential") {
+        setAuthError("An account already exists with this email. Sign in using your original method.");
+      } else {
+        setAuthError(e.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized in Firebase Authentication."
+          : e.message || "Google sign-in failed. Please try again.");
+      }
+      setAuthOpen(true);
+    } finally { setAuthBusy(false); }
+  }
+
+  async function authenticate(email, password, mode, fullName = "") {
+    setAuthBusy(true); setAuthError("");
+    try {
+      if (mode === "signup") {
+        localStorage.setItem("dayflow-onboarding-pending", "1");
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        if (fullName.trim()) await updateProfile(credential.user, { displayName: fullName.trim() });
+      } else await signInWithEmailAndPassword(auth, email, password);
       setAuthOpen(false); notify("You're signed in — tasks will sync.");
     } catch (e) {
+      localStorage.removeItem("dayflow-onboarding-pending");
       setAuthError(e.code === "auth/email-already-in-use" ? "That email already has an account. Try signing in." : e.code === "auth/invalid-credential" ? "Email or password doesn't look right." : e.message);
     } finally { setAuthBusy(false); }
+  }
+
+
+  async function completeOnboarding() {
+    const cleanName = profileName.trim();
+    const cleanWorkspace = workspaceName.trim();
+    if (cleanName.length < 2 || cleanWorkspace.length < 2) {
+      setProfileError("Please enter a name and a workspace name (at least 2 characters).");
+      return;
+    }
+    setProfileBusy(true); setProfileError("");
+    try {
+      await ensurePersonalWorkspace(authUser);
+      await updateProfile(authUser, { displayName: cleanName });
+      await updateDoc(doc(db, "users", authUser.uid), { displayName: cleanName, updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, "workspaces", authUser.uid), { name: cleanWorkspace, updatedAt: serverTimestamp() });
+      setAuthUser(auth.currentUser);
+      setWorkspace((current) => ({ ...(current || {}), id: authUser.uid, name: cleanWorkspace, plan: "free", role: "owner" }));
+      setOnboardingOpen(false);
+      notify("Your personal workspace is ready.");
+    } catch (error) {
+      console.error("Profile setup failed:", error);
+      setProfileError("We couldn't save your profile. Please try again.");
+    } finally { setProfileBusy(false); }
+  }
+
+
+  async function requestReminderPermission(){if(!("Notification" in window)){notify("This browser does not support notifications.");return;}const result=await Notification.requestPermission();if(result==="granted"){setNotifications(true);notify("Task reminders enabled while DayFlow is open.");}else notify("Notification permission was not granted.");}
+  async function saveSettings(name,space){
+    if(!authUser||!firebaseReady)return;
+    if(name.trim().length<2||space.trim().length<2){setSettingsError("Enter a display name and workspace name.");return;}
+    setSettingsBusy(true);setSettingsError("");
+    try{await updateProfile(authUser,{displayName:name.trim()});await updateDoc(doc(db,"users",authUser.uid),{displayName:name.trim(),updatedAt:serverTimestamp()});await updateDoc(doc(db,"workspaces",authUser.uid),{name:space.trim(),updatedAt:serverTimestamp()});setAuthUser(auth.currentUser);setWorkspace(cur=>({...cur,name:space.trim()}));setSettingsOpen(false);notify("Settings saved.");}
+    catch(e){console.error("Settings save failed",e);setSettingsError("Couldn't save settings. Please try again.");}finally{setSettingsBusy(false);}
+  }
+  async function uploadProfilePhoto(file){
+    if(!authUser||!storage)throw new Error("Storage unavailable");
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-").slice(-80);
+    const target=storageRef(storage,"profilePhotos/"+authUser.uid+"/"+Date.now()+"-"+safeName);
+    await uploadBytes(target,file,{contentType:file.type});const photoURL=await getDownloadURL(target);
+    await updateProfile(authUser,{photoURL});await updateDoc(doc(db,"users",authUser.uid),{photoURL,updatedAt:serverTimestamp()});setAuthUser(auth.currentUser);notify("Profile photo updated.");
   }
 
   function changeMonth(amount) { setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + amount, 1)); }
@@ -196,7 +405,9 @@ export default function App() {
   function openNewTask(date = selectedDate) { setModal({ date }); }
   function editTask(task) { setModal({ task, date: fromKey(task.date) }); }
 
-  return <div className="app-shell">
+  if (!authUser && !showDashboard) return <><MarketingPage onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }} onGoogleSignIn={signInWithGoogle} onDemo={() => setShowDashboard(true)} />{authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}{onboardingOpen && authUser && <OnboardingModal name={profileName} workspaceName={workspaceName} setName={setProfileName} setWorkspaceName={setWorkspaceName} onSubmit={completeOnboarding} busy={profileBusy} error={profileError} />}{toast && <div className="toast"><CheckCircle2 size={17}/>{toast}</div>}</>;
+
+  return <div className={"app-shell " + (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "theme-dark" : "")}>
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
       <div className="brand"><div className="brand-icon"><Sparkles size={19} strokeWidth={2.4} /></div><span>dayflow<span className="brand-period">.</span></span></div>
       <div className="workspace-label">WORKSPACE</div>
@@ -210,17 +421,17 @@ export default function App() {
       <div className="category-nav">{CATEGORIES.map((c) => <button key={c} onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }} className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}><span className={"category-dot " + COLORS[c]} />{c}<span className="category-total">{tasks.filter((t) => t.category === c).length}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>One thing at a time.</strong><p>Small steps make great days. Keep your focus on what matters.</p></div>
-        <div className="profile-row"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? authUser.email.split("@")[0] : "Your workspace"}</strong><span>{authUser ? "Synced account" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? signOut(auth) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Sign out" : "Sign in"}>{authUser ? <LogOut size={17} /> : <Settings2 size={17} />}</button></div>
+        <div className="profile-row"><div className="avatar">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</div><div className="profile-copy"><strong>{authUser ? (authUser.displayName || authUser.email.split("@")[0]) : "Your workspace"}</strong><span>{workspace?.plan === "free" ? "Free plan · Personal" : authUser ? "Personal workspace" : "Personal planner"}</span></div><button className="profile-action" onClick={() => authUser ? setSettingsOpen(true) : firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")} title={authUser ? "Settings" : "Sign in"}>{authUser ? <Settings2 size={17} /> : <LogIn size={17} />}</button></div>
       </div>
     </aside>
     {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
 
     <main className="main-area">
       <header className="topbar">
-        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">Workspace <span>/</span> <b>Calendar</b></span></div>
-        <div className="topbar-right"><div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
+        <div className="topbar-left"><IconButton label="Open menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton><span className="breadcrumb">{workspace?.name || "Personal workspace"} <span>/</span> <b>Calendar</b></span></div>
+        <div className="topbar-right">{workspaceError && <span className="workspace-warning" title={workspaceError}>Workspace setup issue</span>}<div className={"sync-status " + (authUser ? "synced" : "")}>{authUser ? <Cloud size={15} /> : <CloudOff size={15} />}<span>{authUser ? "Synced" : "Local mode"}</span></div>
           {authUser ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Sign out</button> : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Add Firebase config to enable cloud sync.")}><LogIn size={15} /> Sign in</button>}
-          <div className="top-avatar">{authUser?.email?.[0]?.toUpperCase() || "D"}</div>
+          <button className="top-avatar top-avatar-button" onClick={()=>authUser&&setSettingsOpen(true)} aria-label="Open settings">{authUser?.photoURL?<img src={authUser.photoURL} alt=""/>:authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "D"}</button>
         </div>
       </header>
 
@@ -279,6 +490,7 @@ export default function App() {
 
     {modal && <TaskModal initial={modal.task} date={modal.date || selectedDate} onClose={() => setModal(null)} onSave={saveTask} onDelete={removeTask} />}
     {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}
+    {settingsOpen && authUser && <SettingsModal user={authUser} workspace={workspace} onClose={()=>setSettingsOpen(false)} onSave={saveSettings} onPhotoUpload={uploadProfilePhoto} onRequestReminderPermission={requestReminderPermission} saving={settingsBusy} error={settingsError} theme={theme} setTheme={setTheme} notifications={notifications} setNotifications={setNotifications}/>}
     {toast && <div className="toast"><CheckCircle2 size={17} />{toast}</div>}
   </div>;
 }
