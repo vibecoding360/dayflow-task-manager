@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight,
-  Clock3, Cloud, CloudOff, Flag, ListTodo, LogIn, LogOut, Timer, Play, Pause, RotateCcw,
-  Menu, MoreHorizontal, Pencil, Plus, Search, Settings2, Sparkles, Trash2, X
+  Clock3, Cloud, CloudOff, Command, Flag, Layers, ListTodo, LogIn, LogOut,
+  Timer, Play, Pause, RotateCcw, Menu, MoreHorizontal, Pencil, Plus,
+  Search, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap
 } from "lucide-react";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp
@@ -27,6 +28,586 @@ const shortDay = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
 const greeting = () => new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
 const makeId = () => globalThis.crypto?.randomUUID?.() || String(Date.now() + Math.random());
 
+const GLOBAL_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+  :root {
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --surface-subtle: #f1f3f9;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --line: #e2e8f0;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 20px 40px -10px rgba(15, 23, 42, 0.16);
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+  }
+
+  .theme-dark {
+    --bg: #0b0f19;
+    --surface: #131929;
+    --surface-subtle: #1b2338;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --line: #232d45;
+    --accent: #818cf8;
+    --accent-hover: #6366f1;
+    --accent-soft: rgba(129, 140, 248, 0.16);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.65);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .brand { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.02em; }
+
+  /* Tones */
+  .tone-violet { --tone: #8b5cf6; --tone-bg: rgba(139, 92, 246, 0.14); }
+  .tone-blue   { --tone: #0ea5e9; --tone-bg: rgba(14, 165, 233, 0.14); }
+  .tone-amber  { --tone: #f59e0b; --tone-bg: rgba(245, 158, 11, 0.15); }
+  .tone-green  { --tone: #10b981; --tone-bg: rgba(16, 185, 129, 0.14); }
+  .violet { background: #8b5cf6; }
+  .blue   { background: #0ea5e9; }
+  .amber  { background: #f59e0b; }
+  .green  { background: #10b981; }
+
+  /* Buttons & Inputs */
+  .icon-button {
+    width: 34px; height: 34px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--text-muted); display: inline-grid; place-items: center;
+    cursor: pointer; transition: all 0.15s ease;
+  }
+  .icon-button:hover { color: var(--text); background: var(--surface-subtle); }
+
+  .btn-primary {
+    height: 38px; padding: 0 16px; border-radius: var(--radius-sm);
+    border: none; background: var(--accent); color: #fff;
+    font-weight: 600; font-size: 0.88rem; display: inline-flex;
+    align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; transition: all 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-quiet {
+    height: 38px; padding: 0 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line); background: transparent;
+    color: var(--text-muted); font-weight: 500; font-size: 0.88rem;
+    cursor: pointer;
+  }
+  .btn-quiet:hover { background: var(--surface-subtle); color: var(--text); }
+
+  .field-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin: 12px 0 5px; }
+  .field-input {
+    width: 100%; padding: 8px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line); background: var(--surface-subtle);
+    color: var(--text); font-family: inherit; font-size: 0.9rem;
+    outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--surface); }
+
+  /* App Shell */
+  .app-shell { display: flex; min-height: 100vh; background: var(--bg); color: var(--text); }
+  .sidebar {
+    width: 248px; flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--line); padding: 20px 14px;
+    display: flex; flex-direction: column; z-index: 30;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 800; padding: 4px 8px 20px; }
+  .brand-icon {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff; display: grid; place-items: center;
+  }
+  .brand-period { color: var(--accent); }
+
+  .main-nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: var(--radius-sm); border: none; background: transparent;
+    color: var(--text-muted); font-weight: 500; font-size: 0.9rem;
+    cursor: pointer; text-align: left; transition: all 0.15s ease;
+  }
+  .nav-item:hover { background: var(--surface-subtle); color: var(--text); }
+  .nav-active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-count {
+    margin-left: auto; font-size: 0.75rem; font-weight: 700;
+    padding: 2px 7px; border-radius: 99px; background: var(--surface-subtle); color: var(--text-muted);
+  }
+  .nav-active .nav-count { background: var(--accent); color: #fff; }
+
+  .sidebar-divider { height: 1px; background: var(--line); margin: 16px 8px; }
+  .category-heading {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--text-muted); padding: 0 10px 8px;
+  }
+  .category-heading button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: grid; place-items: center; }
+  .category-nav { display: flex; flex-direction: column; gap: 3px; }
+  .category-nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-radius: var(--radius-sm); border: none; background: transparent;
+    color: var(--text-muted); font-size: 0.88rem; font-weight: 500; cursor: pointer;
+  }
+  .category-nav-item:hover { background: var(--surface-subtle); color: var(--text); }
+  .category-nav-selected { background: var(--surface-subtle); color: var(--text); font-weight: 600; }
+  .category-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .category-total { margin-left: auto; font-size: 0.76rem; color: var(--text-muted); }
+
+  .sidebar-bottom { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
+  .profile-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: var(--radius-md); }
+  .avatar, .top-avatar {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft);
+    color: var(--accent); font-weight: 700; display: grid; place-items: center; overflow: hidden; flex-shrink: 0;
+  }
+  .avatar img, .top-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-copy { display: flex; flex-direction: column; min-width: 0; }
+  .profile-copy strong { font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .profile-copy span { font-size: 0.74rem; color: var(--text-muted); }
+  .profile-action { margin-left: auto; border: none; background: transparent; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; }
+  .profile-action:hover { background: var(--surface-subtle); color: var(--text); }
+
+  /* Main Area & Topbar */
+  .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    height: 60px; padding: 0 24px; background: var(--surface);
+    border-bottom: 1px solid var(--line); display: flex;
+    align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 20;
+  }
+  .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .menu-toggle { display: none; }
+  .breadcrumb { font-size: 0.86rem; color: var(--text-muted); }
+  .breadcrumb b { color: var(--text); }
+  .kbd-hint {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface-subtle); color: var(--text-muted);
+    font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  }
+  .kbd-hint:hover { border-color: var(--accent); color: var(--accent); }
+  .sync-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.78rem; font-weight: 600; padding: 5px 10px;
+    border-radius: 99px; background: var(--surface-subtle); color: var(--text-muted);
+  }
+  .sync-status.synced { color: #10b981; background: rgba(16, 185, 129, 0.12); }
+  .top-signin {
+    height: 32px; padding: 0 11px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--text); font-size: 0.8rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  }
+  .top-avatar-button { border: none; cursor: pointer; }
+
+  .page-content { max-width: 1360px; width: 100%; margin: 0 auto; padding: 24px; }
+  .welcome-row { display: flex; justify-content: space-between; }
+  .date-overline { font-size: 0.84rem; color: var(--text-muted); }
+
+  /* Stats Grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm);
+  }
+  .stat-highlight {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff; border: none;
+  }
+  .stat-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; font-weight: 600; opacity: 0.9; margin-bottom: 10px; }
+  .stat-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,0.2); }
+  .pale-blue { background: rgba(14, 165, 233, 0.14); color: #0ea5e9; }
+  .pale-green { background: rgba(16, 185, 129, 0.14); color: #10b981; }
+  .pale-amber { background: rgba(245, 158, 11, 0.14); color: #f59e0b; }
+  .stat-number { font-size: 1.85rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; }
+  .stat-main { display: flex; align-items: center; justify-content: space-between; }
+  .stat-main strong { font-size: 2rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; }
+  .stat-main strong small { font-size: 1rem; font-weight: 600; }
+  .progress-ring {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: conic-gradient(#fff var(--progress), rgba(255,255,255,0.24) 0deg);
+    display: grid; place-items: center;
+  }
+  .progress-ring div {
+    width: 38px; height: 38px; border-radius: 50%; background: #7363f3;
+    display: grid; place-items: center; font-size: 0.72rem; font-weight: 700;
+  }
+
+  /* Planner Layout */
+  .planner-layout { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
+  .calendar-card, .agenda-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);
+  }
+  .calendar-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .calendar-toolbar h2 { margin: 0; font-size: 1.2rem; }
+  .calendar-actions { display: flex; align-items: center; gap: 8px; }
+  .today-button {
+    height: 32px; padding: 0 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  }
+  .view-switch { display: flex; background: var(--surface-subtle); padding: 3px; border-radius: var(--radius-sm); }
+  .view-switch button {
+    border: none; background: transparent; color: var(--text-muted);
+    padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .view-switch .view-selected { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  .month-arrows { display: flex; gap: 4px; }
+
+  .calendar-legend { display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
+  .calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Month Grid */
+  .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding-bottom: 8px; }
+  .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .month-cell {
+    min-height: 92px; padding: 7px; border-radius: var(--radius-md);
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--text); display: flex; flex-direction: column; align-items: stretch;
+    text-align: left; cursor: pointer; transition: all 0.14s ease; overflow: hidden;
+  }
+  .month-cell:hover { border-color: var(--accent); }
+  .outside-month { opacity: 0.42; background: var(--surface-subtle); }
+  .selected-cell { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .current-cell .cell-date {
+    background: var(--accent); color: #fff; width: 23px; height: 23px;
+    border-radius: 50%; display: inline-grid; place-items: center;
+  }
+  .drop-target { background: var(--accent-soft) !important; border-style: dashed; }
+  .cell-date { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; }
+  .cell-events { display: flex; flex-direction: column; gap: 3px; }
+  .more-events { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); padding-left: 4px; }
+
+  /* Task Pill */
+  .task-pill {
+    flex: 1; min-width: 0; border: none; border-radius: 6px;
+    background: var(--tone-bg); color: var(--text);
+    padding: 3px 6px; font-size: 0.74rem; font-weight: 600;
+    display: flex; align-items: center; gap: 5px; cursor: pointer; text-align: left;
+  }
+  .task-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tone); flex-shrink: 0; }
+  .task-pill-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-pill-time { margin-left: auto; font-size: 0.68rem; color: var(--text-muted); }
+  .task-pill.is-done .task-pill-title { text-decoration: line-through; opacity: 0.55; }
+
+  /* Week & Day Views */
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .week-column { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 8px; min-height: 300px; background: var(--surface-subtle); }
+  .week-today { border-color: var(--accent); background: var(--surface); }
+  .week-day-head { width: 100%; border: none; background: transparent; color: var(--text); display: flex; flex-direction: column; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; cursor: pointer; }
+  .week-day-head span { font-size: 0.72rem; color: var(--text-muted); }
+  .week-day-head b { font-size: 1rem; margin-top: 2px; }
+  .week-events { display: flex; flex-direction: column; gap: 6px; }
+  .week-add { border: 1px dashed var(--line); background: transparent; color: var(--text-muted); border-radius: 6px; padding: 5px; cursor: pointer; display: grid; place-items: center; }
+
+  .day-agenda { display: flex; flex-direction: column; gap: 10px; min-height: 260px; }
+  .day-event { display: flex; gap: 14px; align-items: stretch; }
+  .day-event-time { width: 68px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: flex; flex-direction: column; justify-content: center; }
+  .day-event-time span { font-size: 0.72rem; font-weight: 500; }
+  .day-event-bar { flex: 1; background: var(--tone-bg); border-left: 4px solid var(--tone); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .day-event-bar strong { display: block; font-size: 0.94rem; }
+  .day-event-bar span { font-size: 0.78rem; color: var(--text-muted); }
+  .day-event-actions { display: flex; gap: 8px; }
+  .day-event-actions button { border: none; background: transparent; color: var(--text); cursor: pointer; display: grid; place-items: center; }
+  .empty-check { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--text-muted); display: inline-block; }
+  .strike { text-decoration: line-through; opacity: 0.6; }
+
+  .calendar-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.82rem; color: var(--text-muted); }
+  .footer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 6px; }
+  .calendar-footer button { border: none; background: transparent; color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  /* Agenda Sidebar */
+  .agenda-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .agenda-heading h2 { margin: 0; font-size: 1.1rem; }
+  .more-button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
+  .agenda-date { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface-subtle); border-radius: var(--radius-md); margin-bottom: 14px; }
+  .agenda-date-number { width: 42px; height: 42px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1.25rem; font-weight: 800; display: grid; place-items: center; }
+  .agenda-date strong { display: block; font-size: 0.95rem; }
+  .agenda-date span { font-size: 0.8rem; color: var(--text-muted); }
+
+  .agenda-progress { margin-bottom: 14px; }
+  .agenda-progress div:first-child { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+  .progress-track { height: 6px; border-radius: 99px; background: var(--surface-subtle); overflow: hidden; }
+  .progress-track span { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.25s ease; }
+
+  .agenda-search { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-subtle); margin-bottom: 12px; color: var(--text-muted); }
+  .agenda-search input { border: none; background: transparent; color: var(--text); width: 100%; outline: none; font-size: 0.85rem; }
+
+  .agenda-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .agenda-task { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); }
+  .task-check { width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--line); background: transparent; color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
+  .agenda-task-done .task-check { background: var(--accent); border-color: var(--accent); }
+  .agenda-task-done strong { text-decoration: line-through; opacity: 0.55; }
+  .agenda-task-main { flex: 1; border: none; background: transparent; color: var(--text); text-align: left; cursor: pointer; min-width: 0; }
+  .agenda-task-main strong { display: block; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agenda-task-main span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-muted); }
+  .priority-high { color: #ef4444; }
+  .priority-medium { color: #f59e0b; }
+  .priority-low { color: #10b981; }
+
+  .agenda-empty, .day-empty { text-align: center; padding: 24px 12px; color: var(--text-muted); }
+  .empty-illustration { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: inline-grid; place-items: center; margin-bottom: 8px; }
+  .agenda-empty button { margin-top: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 6px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+
+  .agenda-add { width: 100%; height: 38px; border-radius: var(--radius-sm); border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.86rem; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; margin-bottom: 18px; }
+
+  .upcoming-block { border-top: 1px solid var(--line); padding-top: 14px; }
+  .upcoming-title { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+  .upcoming-title button { border: none; background: transparent; color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  .upcoming-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: none; background: transparent; color: var(--text); border-radius: 8px; cursor: pointer; text-align: left; }
+  .upcoming-item:hover { background: var(--surface-subtle); }
+  .upcoming-marker { width: 4px; height: 26px; border-radius: 99px; }
+  .upcoming-copy { flex: 1; min-width: 0; }
+  .upcoming-copy strong { display: block; font-size: 0.84rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .upcoming-copy small { font-size: 0.74rem; color: var(--text-muted); }
+  .no-upcoming { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
+
+  /* Focus Timer */
+  .study-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .study-heading h1 { margin: 0; font-size: 1.5rem; }
+  .study-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+  .study-live i { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }
+  .study-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+  .study-timer-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    padding: 36px 24px; text-align: center; box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .study-session-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px; }
+  .study-session-name { border: none; background: transparent; color: var(--text); font-size: 1.15rem; font-weight: 600; text-align: center; outline: none; border-bottom: 1px dashed var(--line); padding-bottom: 4px; margin-bottom: 24px; }
+  .study-clock { font-family: 'Plus Jakarta Sans', monospace; font-size: 4.2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin: 8px 0; }
+  .study-clock-caption { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+  .study-controls { display: flex; gap: 10px; margin-bottom: 24px; }
+  .study-start { height: 44px; padding: 0 24px; font-size: 0.95rem; }
+  .study-reset { width: 44px; height: 44px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-subtle); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+  .duration-fields { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-subtle); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); }
+  .duration-fields input { width: 48px; border: none; background: transparent; color: var(--text); font-weight: 700; font-size: 1rem; text-align: center; }
+  .duration-fields small { font-size: 0.75rem; color: var(--text-muted); }
+  .duration-fields button { border: none; background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 7px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+
+  .study-side { display: flex; flex-direction: column; gap: 16px; }
+  .study-insight { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .study-metric { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px; text-align: center; }
+  .study-metric strong { display: block; font-size: 1.15rem; font-weight: 800; }
+  .study-metric span { font-size: 0.72rem; color: var(--text-muted); }
+  .weekly-report { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .weekly-report-score { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .weekly-report-score strong { font-size: 1.5rem; font-weight: 800; }
+  .weekly-report-track { height: 8px; background: var(--surface-subtle); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+  .weekly-report-track i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .weekly-report-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
+  .weekly-report-categories { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 0.78rem; }
+  .weekly-report-categories span { display: flex; justify-content: space-between; padding: 6px 10px; background: var(--surface-subtle); border-radius: 8px; }
+  .study-templates div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .study-templates button { padding: 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+  .study-templates button:hover { border-color: var(--accent); color: var(--accent); }
+  .study-add-task { width: 100%; padding: 12px; border-radius: 12px; border: 1px dashed var(--line); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(6px);
+    display: grid; place-items: center;
+    padding: 16px; z-index: 100;
+  }
+  .task-modal, .auth-modal, .onboarding-modal, .settings-modal, .cmd-modal {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+  }
+  .modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .modal-top h2 { margin: 0; font-size: 1.2rem; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .category-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+  .category-choice {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px;
+    font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; opacity: 0.75;
+  }
+  .category-choice.selected { opacity: 1; outline: 2px solid var(--accent); }
+  .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+  .actions-spacer { flex: 1; }
+  .delete-button { border: none; background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .form-error { color: #ef4444; font-size: 0.82rem; margin-top: 10px; }
+
+  .auth-modal { max-width: 390px; }
+  .auth-mark { width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; margin-bottom: 12px; }
+  .auth-close { position: absolute; top: 20px; right: 20px; }
+  .auth-submit { width: 100%; margin-top: 18px; height: 42px; }
+  .auth-switch { text-align: center; font-size: 0.84rem; color: var(--text-muted); margin-top: 14px; }
+  .auth-switch button { border: none; background: transparent; color: var(--accent); font-weight: 600; cursor: pointer; }
+
+  .settings-section { padding: 12px 0; border-top: 1px solid var(--line); }
+  .settings-section h3 { margin: 0 0 6px; font-size: 0.9rem; }
+  .settings-choice-row, .settings-toggle { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; }
+  .settings-select { width: 130px; }
+  .settings-permission { margin-top: 8px; border: 1px solid var(--line); background: var(--surface-subtle); color: var(--text); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; }
+
+  /* Command Palette */
+  .cmd-modal { max-width: 520px; padding: 0; overflow: hidden; }
+  .cmd-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--text-muted); }
+  .cmd-head input { flex: 1; border: none; background: transparent; color: var(--text); font-size: 0.98rem; outline: none; }
+  .cmd-list { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .cmd-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: none; background: transparent; color: var(--text); border-radius: 10px; cursor: pointer; font-size: 0.88rem; text-align: left; }
+  .cmd-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .cmd-item span { display: inline-flex; align-items: center; gap: 10px; font-weight: 500; }
+  .cmd-item kbd { font-size: 0.72rem; padding: 2px 6px; border-radius: 5px; background: var(--surface-subtle); border: 1px solid var(--line); color: var(--text-muted); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #0f172a; color: #fff;
+    padding: 10px 16px; border-radius: 12px;
+    font-size: 0.85rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-lg); z-index: 200;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* Marketing Landing Page */
+  .marketing-shell {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.14), transparent 38%),
+      radial-gradient(circle at 85% 20%, rgba(168, 85, 247, 0.12), transparent 36%),
+      #f8f9fc;
+    color: #0f172a;
+  }
+  .marketing-nav {
+    max-width: 1160px; margin: 0 auto; padding: 20px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .marketing-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.35rem; font-weight: 800; color: #0f172a; text-decoration: none; }
+  .marketing-brand span { color: #6366f1; }
+  .marketing-brand-icon { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; display: grid; place-items: center; }
+  .marketing-links { display: flex; gap: 28px; }
+  .marketing-links a { text-decoration: none; color: #475569; font-weight: 500; font-size: 0.92rem; }
+  .marketing-links a:hover { color: #0f172a; }
+  .marketing-nav-actions { display: flex; align-items: center; gap: 10px; }
+  .marketing-google-login, .marketing-login {
+    height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #e2e8f0;
+    background: #fff; color: #0f172a; font-weight: 600; font-size: 0.86rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .marketing-nav-cta {
+    height: 38px; padding: 0 16px; border-radius: 10px; border: none;
+    background: #0f172a; color: #fff; font-weight: 600; font-size: 0.86rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .marketing-menu-toggle { display: none; border: none; background: transparent; }
+
+  .marketing-hero {
+    max-width: 1160px; margin: 0 auto; padding: 56px 24px 72px;
+    display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 99px;
+    background: rgba(99, 102, 241, 0.1); color: #4f46e5;
+    font-size: 0.8rem; font-weight: 700; margin-bottom: 18px;
+  }
+  .hero-copy h1 { font-size: 3.6rem; line-height: 1.06; letter-spacing: -0.04em; margin: 0 0 18px; }
+  .hero-copy h1 span { background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-description { font-size: 1.12rem; line-height: 1.6; color: #475569; margin: 0 0 28px; max-width: 460px; }
+  .hero-actions { display: flex; gap: 12px; }
+  .hero-primary {
+    height: 48px; padding: 0 24px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;
+    font-weight: 600; font-size: 0.98rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.45);
+  }
+  .hero-secondary {
+    height: 48px; padding: 0 22px; border-radius: 12px; border: 1px solid #cbd5e1;
+    background: #fff; color: #0f172a; font-weight: 600; font-size: 0.98rem; cursor: pointer;
+  }
+
+  .hero-visual { position: relative; }
+  .preview-window {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.14);
+    overflow: hidden;
+  }
+  .preview-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.72rem; font-weight: 700; color: #94a3b8; }
+  .preview-dots { display: flex; gap: 6px; }
+  .preview-dots i { width: 9px; height: 9px; border-radius: 50%; background: #e2e8f0; display: inline-block; }
+  .preview-user { width: 22px; height: 22px; border-radius: 6px; background: #6366f1; color: #fff; display: grid; place-items: center; }
+  .preview-content { display: grid; grid-template-columns: 140px 1fr; min-height: 270px; }
+  .preview-sidebar { border-right: 1px solid #f1f5f9; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; color: #64748b; }
+  .preview-logo { font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .preview-nav-active { background: rgba(99, 102, 241, 0.1); color: #6366f1; font-weight: 600; padding: 7px 10px; border-radius: 8px; display: flex; align-items: center; gap: 7px; }
+  .preview-sidebar > div:not(.preview-logo):not(.preview-nav-active) { padding: 7px 10px; display: flex; align-items: center; gap: 7px; }
+  .preview-main { padding: 18px; }
+  .preview-month { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 0.9rem; }
+  .preview-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; margin-bottom: 16px; }
+  .preview-days div { padding: 8px 4px; border-radius: 10px; background: #f8fafc; }
+  .preview-days small { display: block; font-size: 0.68rem; color: #94a3b8; }
+  .preview-days b { display: inline-grid; place-items: center; width: 24px; height: 24px; font-size: 0.82rem; margin-top: 4px; border-radius: 50%; }
+  .preview-today { background: #6366f1; color: #fff; }
+  .preview-events { display: flex; flex-direction: column; gap: 8px; }
+  .preview-event { padding: 9px 12px; border-radius: 9px; font-size: 0.8rem; font-weight: 600; }
+  .event-purple { background: #f3e8ff; color: #7e22ce; }
+  .event-blue { background: #e0f2fe; color: #0369a1; }
+  .event-orange { background: #fef3c7; color: #b45309; }
+
+  .marketing-section, .how-section, .pricing-section { max-width: 1160px; margin: 0 auto; padding: 56px 24px; }
+  .section-intro h2, .how-heading h2, .pricing-section h2 { font-size: 2rem; margin: 0 0 24px; letter-spacing: -0.03em; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feature-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 24px; box-shadow: var(--shadow-sm); }
+  .feature-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; }
+  .feature-lilac { background: #f3e8ff; color: #7e22ce; }
+  .feature-blue { background: #e0f2fe; color: #0369a1; }
+  .feature-peach { background: #fef3c7; color: #b45309; }
+  .feature-card h3 { margin: 0 0 8px; font-size: 1.15rem; }
+  .feature-card p { margin: 0; color: #64748b; line-height: 1.55; font-size: 0.94rem; }
+
+  .how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .how-steps article { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 24px; }
+  .how-steps b { font-size: 0.85rem; color: #6366f1; font-family: 'Plus Jakarta Sans', sans-serif; }
+  .how-steps h3 { margin: 8px 0 6px; }
+  .how-steps p { margin: 0; color: #64748b; font-size: 0.92rem; }
+
+  .pricing-card { max-width: 380px; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 28px; box-shadow: var(--shadow-md); }
+  .pricing-price { font-size: 2.4rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 16px; }
+  .pricing-card ul { list-style: none; padding: 0; margin: 0 0 22px; display: flex; flex-direction: column; gap: 10px; color: #475569; font-size: 0.92rem; }
+  .pricing-card li { display: flex; align-items: center; gap: 8px; }
+  .pricing-card li svg { color: #16a34a; }
+  .pricing-card button { width: 100%; height: 42px; border-radius: 10px; border: none; background: #0f172a; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+  .marketing-footer { max-width: 1160px; margin: 0 auto; padding: 28px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 0.88rem; }
+
+  @media (max-width: 980px) {
+    .planner-layout, .study-layout, .marketing-hero { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .feature-grid, .how-steps { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar.sidebar-open { transform: translateX(0); }
+    .menu-toggle { display: inline-grid; }
+    .mobile-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.4); border: none; z-index: 25; }
+  }
+`;
+
 function IconButton({ children, onClick, label, className = "" }) {
   return <button type="button" aria-label={label} title={label} onClick={onClick} className={"icon-button " + className}>{children}</button>;
 }
@@ -34,14 +615,24 @@ function IconButton({ children, onClick, label, className = "" }) {
 function TaskPill({ task, onClick, onToggle, compact = false }) {
   const tone = COLORS[task.category] || "violet";
   return (
-    <span className="task-pill-wrap" style={{ display: "flex", alignItems: "center", gap: 3, minWidth: 0 }}>
+    <span
+      draggable
+      onDragStart={(e) => e.dataTransfer.setData("text/dayflow-task", task.id)}
+      className="task-pill-wrap"
+      style={{ display: "flex", alignItems: "center", gap: 3, minWidth: 0 }}
+    >
       {onToggle && (
         <button
           type="button"
           aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
           title={task.completed ? "Incomplete" : "Complete"}
           onClick={(e) => { e.stopPropagation(); onToggle(task); }}
-          style={{ width: 17, height: 17, flex: "0 0 17px", borderRadius: 5, border: "1px solid var(--line, #d8dce5)", background: task.completed ? "var(--accent, #7663d8)" : "transparent", color: "#fff", display: "grid", placeItems: "center", padding: 0, cursor: "pointer" }}
+          style={{
+            width: 17, height: 17, flex: "0 0 17px", borderRadius: 5,
+            border: "1px solid var(--line, #d8dce5)",
+            background: task.completed ? "var(--accent, #6366f1)" : "transparent",
+            color: "#fff", display: "grid", placeItems: "center", padding: 0, cursor: "pointer"
+          }}
         >
           {task.completed ? <Check size={11} /> : null}
         </button>
@@ -56,6 +647,46 @@ function TaskPill({ task, onClick, onToggle, compact = false }) {
         {!compact && task.startTime && <span className="task-pill-time">{task.startTime}</span>}
       </button>
     </span>
+  );
+}
+
+function CommandPalette({ open, onClose, onNewTask, onSwitchView, onToggleTheme }) {
+  const [query, setQuery] = useState("");
+  if (!open) return null;
+
+  const actions = [
+    { label: "Create new task", shortcut: "N", icon: <Plus size={16} />, run: () => { onClose(); onNewTask(); } },
+    { label: "Go to Month Calendar", shortcut: "1", icon: <CalendarDays size={16} />, run: () => { onClose(); onSwitchView("month"); } },
+    { label: "Go to Week View", shortcut: "2", icon: <Layers size={16} />, run: () => { onClose(); onSwitchView("week"); } },
+    { label: "Go to Day Agenda", shortcut: "3", icon: <ListTodo size={16} />, run: () => { onClose(); onSwitchView("day"); } },
+    { label: "Open Focus Timer", shortcut: "T", icon: <Timer size={16} />, run: () => { onClose(); onSwitchView("timer"); } },
+    { label: "Toggle Dark / Light Mode", shortcut: "D", icon: <Sparkles size={16} />, run: () => { onClose(); onToggleTheme(); } },
+  ].filter((a) => a.label.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cmd-modal">
+        <div className="cmd-head">
+          <Command size={17} />
+          <input
+            autoFocus
+            placeholder="Type a command or search..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && onClose()}
+          />
+          <IconButton label="Close" onClick={onClose}><X size={16} /></IconButton>
+        </div>
+        <div className="cmd-list">
+          {actions.map((act) => (
+            <button key={act.label} className="cmd-item" onClick={act.run}>
+              <span>{act.icon} {act.label}</span>
+              <kbd>{act.shortcut}</kbd>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -208,19 +839,14 @@ function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSub
   return (
     <div className="modal-backdrop onboarding-backdrop">
       <form className="onboarding-modal" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-        <div className="onboarding-art">
-          <div className="onboarding-orbit orbit-one" />
-          <div className="onboarding-orbit orbit-two" />
-          <div className="onboarding-spark"><Sparkles size={25} /></div>
-          <span className="onboarding-art-check"><Check size={15} /></span>
-        </div>
-        <h2>Setup</h2>
+        <div className="auth-mark"><Sparkles size={22} /></div>
+        <h2>Setup your workspace</h2>
         <label className="field-label">Name</label>
         <input className="field-input" required minLength="2" maxLength="60" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
         <label className="field-label">Workspace</label>
         <input className="field-input" required minLength="2" maxLength="60" placeholder="Workspace" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} />
         {error && <p className="form-error">{error}</p>}
-        <button className="btn-primary onboarding-submit" disabled={busy}>
+        <button className="btn-primary auth-submit" disabled={busy}>
           {busy ? "Saving..." : "Continue"} <ArrowRight size={17} />
         </button>
       </form>
@@ -364,15 +990,15 @@ function StudyTimer({ onStartTask, tasks, user }) {
   return (
     <section className="study-page">
       <div className="study-heading">
-        <h1>Timer</h1>
+        <h1>Focus Timer</h1>
         <span className="study-live"><i /> LIVE</span>
       </div>
       <div className="study-layout">
         <div className="study-timer-card">
-          <div className="study-session-label"><Timer size={17} /> SESSION</div>
+          <div className="study-session-label"><Timer size={17} /> DEEP WORK SESSION</div>
           <input className="study-session-name" value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Session name" />
           <div className="study-clock">{display}</div>
-          <div className="study-clock-caption">{remaining === 0 ? "Done" : running ? "Running" : "Ready"}</div>
+          <div className="study-clock-caption">{remaining === 0 ? "Completed" : running ? "In progress..." : "Ready when you are"}</div>
           <div className="study-controls">
             <button className="btn-primary study-start" onClick={() => { if (remaining === 0) reset(); setRunning((v) => !v); }}>
               {running ? <Pause size={18} /> : <Play size={18} />} {running ? "Pause" : "Start"}
@@ -394,10 +1020,10 @@ function StudyTimer({ onStartTask, tasks, user }) {
           <div className="study-insight">
             <div className="study-metric"><strong>{sessions}</strong><span>Sessions</span></div>
             <div className="study-metric"><strong>{Math.floor(total / 60)}h {total % 60}m</strong><span>Focus time</span></div>
-            <div className="study-metric"><strong>{completed}</strong><span>Study done</span></div>
+            <div className="study-metric"><strong>{completed}</strong><span>Tasks done</span></div>
           </div>
           <div className="weekly-report">
-            <div className="weekly-report-score"><strong>{completionRate}%</strong><span>Weekly</span></div>
+            <div className="weekly-report-score"><strong>{completionRate}%</strong><span>Weekly velocity</span></div>
             <div className="weekly-report-track"><i style={{ width: completionRate + "%" }} /></div>
             <div className="weekly-report-stats"><span><b>{completed}/{weekTasks.length}</b> done</span><span><b>{studyDone}</b> study</span></div>
             <div className="weekly-report-categories">{categorySummary.map((x) => <span key={x.name}>{x.name}<b>{x.count}</b></span>)}</div>
@@ -422,7 +1048,7 @@ function EmptyState({ onAdd }) {
   return (
     <div className="day-empty">
       <div className="empty-illustration"><CalendarDays size={22} /></div>
-      <h3>No tasks</h3>
+      <h3>No tasks scheduled</h3>
       <button className="btn-primary" onClick={onAdd}><Plus size={16} /> Add task</button>
     </div>
   );
@@ -463,41 +1089,41 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
       <main id="home">
         <section className="marketing-hero">
           <div className="hero-copy">
+            <div className="hero-badge"><Zap size={14} /> Built for high-focus days</div>
             <h1>Plan less.<br />Do <span>more.</span></h1>
-            <p className="hero-description">Tasks, calendar, and focus timer in one place.</p>
+            <p className="hero-description">Tasks, calendar, and deep-work focus timer unified in one calm, keyboard-first workspace.</p>
             <div className="hero-actions">
-              <button className="hero-primary" onClick={onStart}>Get started <ArrowRight size={17} /></button>
-              <button className="hero-secondary" onClick={onDemo}>Try demo</button>
+              <button className="hero-primary" onClick={onStart}>Get started free <ArrowRight size={17} /></button>
+              <button className="hero-secondary" onClick={onDemo}>Try live demo</button>
             </div>
           </div>
 
           <div className="hero-visual" aria-label="Calendar preview">
-            <div className="visual-glow" />
             <div className="preview-window">
               <div className="preview-top">
                 <div className="preview-dots"><i /><i /><i /></div>
-                <span>WORKSPACE</span>
+                <span>DAYFLOW WORKSPACE</span>
                 <span className="preview-user">D</span>
               </div>
               <div className="preview-content">
                 <div className="preview-sidebar">
                   <div className="preview-logo"><Sparkles size={14} /> dayflow.</div>
                   <div className="preview-nav-active"><CalendarDays size={13} /> Calendar</div>
-                  <div><ListTodo size={13} /> Tasks</div>
-                  <div><Flag size={13} /> Timer</div>
+                  <div><ListTodo size={13} /> Today</div>
+                  <div><Timer size={13} /> Timer</div>
                 </div>
                 <div className="preview-main">
                   <div className="preview-calendar">
                     <div className="preview-month"><b>November 2026</b><span>‹ ›</span></div>
                     <div className="preview-days">
                       {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-                        <div key={i}><small>{d}</small><b className={i === 2 ? "preview-today" : ""}>{9 + i}</b></div>
+                        <div key={i}><small>{d}</small><b className={i === 4 ? "preview-today" : ""}>{16 + i}</b></div>
                       ))}
                     </div>
                     <div className="preview-events">
-                      <div className="preview-event event-purple">Study · 09:00</div>
-                      <div className="preview-event event-blue">Work · 11:30</div>
-                      <div className="preview-event event-orange">Personal · 16:00</div>
+                      <div className="preview-event event-purple">Study · 09:00 — Deep Work</div>
+                      <div className="preview-event event-blue">Work · 11:30 — Sprint Review</div>
+                      <div className="preview-event event-orange">Personal · 16:00 — Evening Run</div>
                     </div>
                   </div>
                 </div>
@@ -507,22 +1133,22 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
         </section>
 
         <section className="marketing-section" id="features">
-          <div className="section-intro"><h2>Features</h2></div>
+          <div className="section-intro"><h2>Everything in sync</h2></div>
           <div className="feature-grid">
-            <article className="feature-card feature-large">
+            <article className="feature-card">
               <div className="feature-icon feature-lilac"><CalendarDays size={21} /></div>
-              <h3>Calendar</h3>
-              <p>Month, week, and day views with drag rescheduling.</p>
+              <h3>Fluid Calendar</h3>
+              <p>Switch seamlessly between Month, Week, and Day views with instant drag-and-drop rescheduling.</p>
             </article>
             <article className="feature-card">
-              <div className="feature-icon feature-blue"><Cloud size={21} /></div>
-              <h3>Cloud sync</h3>
-              <p>Real-time sync via Firebase.</p>
+              <div className="feature-icon feature-blue"><ShieldCheck size={21} /></div>
+              <h3>Real-time Cloud Sync</h3>
+              <p>Powered by Firebase so your schedule, recurring blocks, and completion stats stay live everywhere.</p>
             </article>
             <article className="feature-card">
-              <div className="feature-icon feature-peach"><Sparkles size={21} /></div>
-              <h3>Focus timer</h3>
-              <p>Custom session durations and weekly stats.</p>
+              <div className="feature-icon feature-peach"><Timer size={21} /></div>
+              <h3>Focus Timer & Velocity</h3>
+              <p>Custom session durations paired with automatic weekly velocity tracking across every category.</p>
             </article>
           </div>
         </section>
@@ -530,20 +1156,20 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
         <section className="how-section" id="how-it-works">
           <div className="how-heading"><h2>Workflow</h2></div>
           <div className="how-steps">
-            <article><b>01</b><h3>Create space</h3><p>Set up your workspace.</p></article>
-            <article><b>02</b><h3>Add tasks</h3><p>Schedule dates and times.</p></article>
-            <article><b>03</b><h3>Track progress</h3><p>Complete tasks and sessions.</p></article>
+            <article><b>01</b><h3>Create space</h3><p>Launch a personal workspace in seconds—online or offline.</p></article>
+            <article><b>02</b><h3>Time-block tasks</h3><p>Capture quick tasks or set recurring study and work blocks.</p></article>
+            <article><b>03</b><h3>Execute with focus</h3><p>Launch the live timer and watch your daily progress ring close.</p></article>
           </div>
         </section>
 
         <section className="pricing-section" id="pricing">
-          <div><h2>Pricing</h2></div>
+          <div><h2>Simple pricing</h2></div>
           <div className="pricing-card">
             <div className="pricing-price">Free</div>
             <ul>
-              <li><Check size={15} /> Personal workspace</li>
-              <li><Check size={15} /> Month, week, day views</li>
-              <li><Check size={15} /> Cloud sync</li>
+              <li><Check size={15} /> Unlimited tasks & recurring schedules</li>
+              <li><Check size={15} /> Month, week, and day calendar views</li>
+              <li><Check size={15} /> Real-time Firebase cloud sync</li>
             </ul>
             <button onClick={onStart}>Get started <ArrowRight size={16} /></button>
           </div>
@@ -564,6 +1190,7 @@ export default function App() {
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [view, setView] = useState("month");
   const [modal, setModal] = useState(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [workspace, setWorkspace] = useState(null);
   const [workspaceError, setWorkspaceError] = useState("");
@@ -587,6 +1214,17 @@ export default function App() {
   const [settingsError, setSettingsError] = useState("");
   const [theme, setTheme] = useState(() => localStorage.getItem("dayflow-theme") || "light");
   const [notifications, setNotifications] = useState(() => localStorage.getItem("dayflow-notifications") !== "off");
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -849,6 +1487,7 @@ export default function App() {
   if (!authUser && !showDashboard) {
     return (
       <>
+        <style>{GLOBAL_STYLES}</style>
         <MarketingPage
           onStart={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }}
           onSignIn={() => { if (firebaseReady) setAuthOpen(true); else setShowDashboard(true); }}
@@ -872,6 +1511,7 @@ export default function App() {
 
   return (
     <div className={"app-shell " + (isDark ? "theme-dark" : "")}>
+      <style>{GLOBAL_STYLES}</style>
       <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
         <div className="brand">
           <div className="brand-icon"><Sparkles size={19} strokeWidth={2.4} /></div>
@@ -942,6 +1582,9 @@ export default function App() {
             </span>
           </div>
           <div className="topbar-right">
+            <button className="kbd-hint" onClick={() => setCmdOpen(true)} title="Command Palette">
+              <Command size={13} /> <span>⌘K</span>
+            </button>
             {workspaceError && <span className="workspace-warning">{workspaceError}</span>}
             <div className={"sync-status " + (authUser ? "synced" : "")}>
               {authUser ? <Cloud size={15} /> : <CloudOff size={15} />}
@@ -961,19 +1604,19 @@ export default function App() {
         <section className="page-content">
           <div className="welcome-row" style={{ alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
             <div>
-              <h1 style={{ fontSize: "1.45rem", margin: 0 }}>{greeting()}</h1>
+              <h1 style={{ fontSize: "1.55rem", margin: 0 }}>{greeting()}</h1>
               <span className="date-overline">{fullDay(today)}</span>
             </div>
             <form onSubmit={addQuickTask} style={{ display: "flex", gap: 8, flex: 1, minWidth: 260, maxWidth: 460, marginLeft: "auto" }}>
               <input
                 className="field-input"
-                style={{ flex: 1, height: 40 }}
+                style={{ flex: 1, height: 38 }}
                 value={quickTaskTitle}
                 onChange={(e) => setQuickTaskTitle(e.target.value)}
-                placeholder="New task..."
+                placeholder="Quick add task..."
                 aria-label="New task"
               />
-              <button className="btn-primary" type="submit" disabled={!quickTaskTitle.trim()} style={{ height: 40 }}>
+              <button className="btn-primary" type="submit" disabled={!quickTaskTitle.trim()}>
                 <Plus size={16} /> Add
               </button>
               <IconButton label="Options" onClick={() => openNewTask()}><Settings2 size={17} /></IconButton>
@@ -1005,7 +1648,7 @@ export default function App() {
           )}
 
           {view === "timer" ? (
-            <StudyTimer tasks={tasks} user={authUser} onStartTask={() => setModal({ date: dateKey(today) })} />
+            <StudyTimer tasks={tasks} user={authUser} onStartTask={() => setModal({ date: today })} />
           ) : (
             <section className="planner-layout">
               <div className="calendar-card">
@@ -1199,6 +1842,14 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onNewTask={() => openNewTask(selectedDate)}
+        onSwitchView={(v) => setView(v)}
+        onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+      />
 
       {modal && <TaskModal initial={modal.task} date={modal.date || selectedDate} onClose={() => setModal(null)} onSave={saveTask} onDelete={removeTask} />}
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSubmit={authenticate} busy={authBusy} error={authError} />}
