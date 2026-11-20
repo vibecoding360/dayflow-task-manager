@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight,
-  Clock3, Cloud, CloudOff, Command, Flag, Layers, ListTodo, LogIn, LogOut,
-  Timer, Play, Pause, RotateCcw, Menu, MoreHorizontal, Pencil, Plus,
-  Search, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap, Undo2, AlertCircle
+  ArrowRight, Award, BookOpen, CalendarDays, Check, CheckCircle2,
+  ChevronLeft, ChevronRight, Clock3, Cloud, CloudOff, Command, Copy,
+  Flame, Flag, GraduationCap, Layers, LayoutDashboard, ListTodo, LogIn,
+  LogOut, Timer, Play, Pause, RotateCcw, Menu, MoreHorizontal, Pencil,
+  Plus, Search, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap,
+  Undo2, AlertCircle, BarChart3, Target
 } from "lucide-react";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
@@ -17,12 +19,25 @@ import { auth, db, firebaseReady, ensurePersonalWorkspace } from "./firebase";
 
 const CATEGORIES = ["Study", "Work", "Personal", "Health"];
 const PRIORITIES = ["Low", "Medium", "High"];
+const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const COLORS = { Study: "violet", Work: "blue", Personal: "amber", Health: "green" };
-const TIMER_STORAGE_KEY = "cadence-timer-state-v2";
+
+const STORAGE_KEYS = {
+  tasks: "cadence-tasks-v3",
+  timer: "cadence-timer-v3",
+  sessions: "cadence-sessions-v3",
+  subjects: "cadence-subjects-v3",
+  exams: "cadence-exams-v3",
+  mocks: "cadence-mocks-v3",
+  dailyTargetMin: "cadence-daily-target-min-v3",
+  theme: "cadence-theme-v3",
+  notifications: "cadence-notifications-v3",
+  lastCategory: "cadence-last-category-v3"
+};
 
 const getToday = () => new Date();
 const dateKey = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
-const fromKey = (s) => { const p = s.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const fromKey = (s) => { const p = String(s || "").split("-").map(Number); return new Date(p[0] || 2026, (p[1] || 1) - 1, p[2] || 1); };
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const sameDay = (a, b) => dateKey(a) === dateKey(b);
 const monthLabel = (d) => d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -33,14 +48,35 @@ const greeting = () => {
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 };
 const makeId = () => globalThis.crypto?.randomUUID?.() || String(Date.now() + Math.random());
+const formatHoursMins = (mins) => {
+  const safe = Math.max(0, Math.round(Number(mins) || 0));
+  return `${Math.floor(safe / 60)}h ${safe % 60}m`;
+};
+
+function safeReadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeWriteJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage quota issues
+  }
+}
 
 function formatFriendlyError(err, fallback = "Something went wrong. Please try again.") {
   const code = err?.code || "";
-  if (code.includes("permission-denied")) return "You don't have permission for this action.";
-  if (code.includes("unavailable") || code.includes("network")) return "Network issue. Check your connection and retry.";
+  if (code.includes("permission-denied")) return "Permission denied for this operation.";
+  if (code.includes("unavailable") || code.includes("network")) return "Network unavailable. Changes will sync when online.";
   if (code.includes("invalid-credential") || code.includes("wrong-password")) return "Invalid email or password.";
   if (code.includes("email-already-in-use")) return "An account with this email already exists.";
-  if (code.includes("popup-closed-by-user")) return "Sign-in popup was closed before completing.";
+  if (code.includes("popup-closed-by-user")) return "Google sign-in window was closed.";
   return err?.message ? String(err.message).replace(/^Firebase:\s*/i, "") : fallback;
 }
 
@@ -74,7 +110,7 @@ const GLOBAL_STYLES = `
     --line: #232f46;
     --accent: #818cf8;
     --accent-hover: #6366f1;
-    --accent-soft: rgba(129, 140, 248, 0.15);
+    --accent-soft: rgba(129, 140, 248, 0.16);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
@@ -159,13 +195,26 @@ const GLOBAL_STYLES = `
   /* App Shell */
   .app-shell { display: flex; min-height: 100vh; width: 100%; background: var(--bg); color: var(--text); }
   .sidebar {
-    width: 248px; flex-shrink: 0; background: var(--surface);
+    width: 252px; flex-shrink: 0; background: var(--surface);
     border-right: 1px solid var(--line); padding: 20px 14px;
     display: flex; flex-direction: column; z-index: 40;
     position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    transition: width 0.2s ease, transform 0.2s ease;
   }
-  .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 20px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.32rem; font-weight: 800; }
+  .sidebar.collapsed { width: 74px; padding: 20px 10px; }
+  .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .nav-count,
+  .sidebar.collapsed .category-heading span,
+  .sidebar.collapsed .category-nav-label,
+  .sidebar.collapsed .category-total,
+  .sidebar.collapsed .profile-copy { display: none; }
+  .sidebar.collapsed .nav-item,
+  .sidebar.collapsed .category-nav-item { justify-content: center; padding: 10px; }
+  .sidebar.collapsed .brand-row { justify-content: center; padding: 2px 0 20px; }
+
+  .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 18px; gap: 6px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 800; }
   .brand-icon {
     width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
     background: linear-gradient(135deg, #4f46e5, #0ea5e9);
@@ -176,37 +225,37 @@ const GLOBAL_STYLES = `
 
   .main-nav { display: flex; flex-direction: column; gap: 4px; }
   .nav-item {
-    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     border-radius: var(--radius-sm); border: none; background: transparent;
-    color: var(--text-muted); font-weight: 500; font-size: 0.9rem;
+    color: var(--text-muted); font-weight: 500; font-size: 0.88rem;
     cursor: pointer; text-align: left; transition: all 0.15s ease;
   }
   .nav-item:hover { background: var(--surface-subtle); color: var(--text); }
   .nav-active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .nav-count {
-    margin-left: auto; font-size: 0.74rem; font-weight: 700;
-    padding: 2px 8px; border-radius: 99px; background: var(--surface-subtle); color: var(--text-muted);
+    margin-left: auto; font-size: 0.72rem; font-weight: 700;
+    padding: 2px 7px; border-radius: 99px; background: var(--surface-subtle); color: var(--text-muted);
   }
   .nav-active .nav-count { background: var(--accent); color: #fff; }
 
-  .sidebar-divider { height: 1px; background: var(--line); margin: 16px 8px; }
+  .sidebar-divider { height: 1px; background: var(--line); margin: 14px 8px; }
   .category-heading {
     display: flex; align-items: center; justify-content: space-between;
-    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
     color: var(--text-muted); padding: 0 10px 8px;
   }
   .category-heading button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: grid; place-items: center; padding: 2px; border-radius: 6px; }
   .category-heading button:hover { background: var(--surface-subtle); color: var(--text); }
   .category-nav { display: flex; flex-direction: column; gap: 3px; }
   .category-nav-item {
-    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px; padding: 7px 12px;
     border-radius: var(--radius-sm); border: none; background: transparent;
-    color: var(--text-muted); font-size: 0.88rem; font-weight: 500; cursor: pointer;
+    color: var(--text-muted); font-size: 0.86rem; font-weight: 500; cursor: pointer;
   }
   .category-nav-item:hover { background: var(--surface-subtle); color: var(--text); }
   .category-nav-selected { background: var(--surface-subtle); color: var(--text); font-weight: 600; }
   .category-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-  .category-total { margin-left: auto; font-size: 0.76rem; color: var(--text-muted); }
+  .category-total { margin-left: auto; font-size: 0.74rem; color: var(--text-muted); }
 
   .sidebar-bottom { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
   .profile-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: var(--radius-md); }
@@ -301,8 +350,9 @@ const GLOBAL_STYLES = `
     font-size: 0.7rem; font-weight: 700; color: #fff;
   }
 
+  /* Planner Layout */
   .planner-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
-  .calendar-card, .agenda-card {
+  .calendar-card, .agenda-card, .module-card {
     background: var(--surface); border: 1px solid var(--line);
     border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);
     min-width: 0;
@@ -394,6 +444,7 @@ const GLOBAL_STYLES = `
   .footer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 6px; }
   .calendar-footer button { border: none; background: transparent; color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 
+  /* Agenda Sidebar */
   .agenda-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .agenda-heading h2 { margin: 0; font-size: 1.1rem; }
   .more-button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
@@ -412,12 +463,14 @@ const GLOBAL_STYLES = `
 
   .agenda-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   .agenda-task { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+  .agenda-task.is-overdue { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.04); }
   .task-check { width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--line); background: transparent; color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
   .agenda-task-done .task-check { background: var(--accent); border-color: var(--accent); }
   .agenda-task-done strong { text-decoration: line-through; opacity: 0.55; }
   .agenda-task-main { flex: 1; border: none; background: transparent; color: var(--text); text-align: left; cursor: pointer; min-width: 0; padding: 0; }
   .agenda-task-main strong { display: block; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agenda-task-main span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-muted); }
+  .overdue-tag { font-size: 0.68rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
   .priority-mark { flex-shrink: 0; display: grid; place-items: center; }
   .priority-high { color: #ef4444; }
   .priority-medium { color: #f59e0b; }
@@ -441,8 +494,9 @@ const GLOBAL_STYLES = `
   .upcoming-copy small { font-size: 0.74rem; color: var(--text-muted); }
   .no-upcoming { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
 
-  /* Focus Timer */
-  .study-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  /* Focus Timer & Modules */
+  .study-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .study-heading-left { display: flex; align-items: center; gap: 12px; }
   .study-heading h1 { margin: 0; font-size: 1.5rem; }
   .study-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: rgba(239, 68, 68, 0.12); color: #ef4444; }
   .study-live i { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }
@@ -467,7 +521,7 @@ const GLOBAL_STYLES = `
   .study-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .study-insight { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .study-metric { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px; text-align: center; }
-  .study-metric strong { display: block; font-size: 1.1rem; font-weight: 800; }
+  .study-metric strong { display: block; font-size: 1.05rem; font-weight: 800; }
   .study-metric span { font-size: 0.72rem; color: var(--text-muted); }
   .weekly-report { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
   .weekly-report-score { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
@@ -477,11 +531,32 @@ const GLOBAL_STYLES = `
   .weekly-report-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
   .weekly-report-categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 0.78rem; }
   .weekly-report-categories span { display: flex; justify-content: space-between; padding: 6px 10px; background: var(--surface-subtle); border-radius: 8px; }
-  .study-templates div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .study-templates button { padding: 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+  .study-templates div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .study-templates button { padding: 9px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: 0.8rem; cursor: pointer; }
   .study-templates button:hover { border-color: var(--accent); color: var(--accent); }
   .study-add-task { width: 100%; padding: 12px; border-radius: 12px; border: 1px dashed var(--line); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .study-add-task:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Dashboard / Subject / Exam Cards */
+  .two-col-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; }
+  .item-row-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md);
+    background: var(--surface-subtle); margin-bottom: 10px;
+  }
+  .item-row-main { min-width: 0; flex: 1; }
+  .item-row-main strong { display: block; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-row-main small { color: var(--text-muted); font-size: 0.78rem; }
+  .badge-pill {
+    font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+    background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+  }
+  .badge-weak { background: rgba(239, 68, 68, 0.14); color: #ef4444; }
+  .badge-good { background: rgba(16, 185, 129, 0.14); color: #10b981; }
+  .subtask-box { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; background: var(--surface-subtle); margin-top: 6px; }
+  .subtask-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; margin-bottom: 6px; }
+  .subtask-row:last-child { margin-bottom: 0; }
+  .subtask-add-row { display: flex; gap: 6px; margin-top: 8px; }
 
   /* Modals */
   .modal-backdrop {
@@ -494,7 +569,8 @@ const GLOBAL_STYLES = `
   .task-modal, .auth-modal, .onboarding-modal, .settings-modal, .cmd-modal, .confirm-modal {
     background: var(--surface); border: 1px solid var(--line);
     border-radius: var(--radius-lg); padding: 24px;
-    width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); position: relative;
+    width: 100%; max-width: 470px; box-shadow: var(--shadow-lg); position: relative;
+    max-height: 90vh; overflow-y: auto;
   }
   .confirm-modal { max-width: 380px; }
   .confirm-modal p { color: var(--text-muted); font-size: 0.9rem; margin: 8px 0 0; line-height: 1.5; }
@@ -535,7 +611,6 @@ const GLOBAL_STYLES = `
   .cmd-item span { display: inline-flex; align-items: center; gap: 10px; font-weight: 500; }
   .cmd-item kbd { font-size: 0.72rem; padding: 2px 6px; border-radius: 5px; background: var(--surface-subtle); border: 1px solid var(--line); color: var(--text-muted); }
 
-  /* Toast */
   .toast {
     position: fixed; bottom: 24px; right: 24px;
     background: #0f172a; color: #fff;
@@ -666,10 +741,10 @@ const GLOBAL_STYLES = `
   .marketing-footer { max-width: 1160px; margin: 0 auto; padding: 28px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 0.88rem; }
 
   @media (max-width: 1024px) {
-    .planner-layout, .study-layout, .marketing-hero { grid-template-columns: 1fr; }
+    .planner-layout, .study-layout, .marketing-hero, .two-col-grid { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .feature-grid, .how-steps { grid-template-columns: 1fr; }
-    .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform 0.2s ease; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; width: 252px; transform: translateX(-100%); transition: transform 0.2s ease; }
     .sidebar.sidebar-open { transform: translateX(0); }
     .sidebar-close { display: inline-grid; }
     .menu-toggle { display: inline-grid; }
@@ -735,7 +810,7 @@ function TaskPill({ task, onClick, onToggle, compact = false }) {
   );
 }
 
-function ConfirmDeleteModal({ task, onCancel, onConfirm }) {
+function ConfirmDeleteModal({ task, onCancel, onConfirm, busy }) {
   if (!task) return null;
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
@@ -749,9 +824,9 @@ function ConfirmDeleteModal({ task, onCancel, onConfirm }) {
         </p>
         <div className="modal-actions">
           <div className="actions-spacer" />
-          <button type="button" className="btn-quiet" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn-danger" onClick={() => onConfirm(task)}>
-            <Trash2 size={15} /> Delete
+          <button type="button" className="btn-quiet" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" className="btn-danger" onClick={() => onConfirm(task)} disabled={busy}>
+            <Trash2 size={15} /> {busy ? "Deleting..." : "Delete"}
           </button>
         </div>
       </div>
@@ -765,9 +840,10 @@ function CommandPalette({ open, onClose, onNewTask, onSwitchView, onToggleTheme 
 
   const actions = [
     { label: "Create new task", shortcut: "N", icon: <Plus size={16} />, run: () => { onClose(); onNewTask(); } },
+    { label: "Study Dashboard & Analytics", shortcut: "A", icon: <LayoutDashboard size={16} />, run: () => { onClose(); onSwitchView("dashboard"); } },
     { label: "Go to Month Calendar", shortcut: "1", icon: <CalendarDays size={16} />, run: () => { onClose(); onSwitchView("month"); } },
-    { label: "Go to Week View", shortcut: "2", icon: <Layers size={16} />, run: () => { onClose(); onSwitchView("week"); } },
-    { label: "Go to Day Agenda", shortcut: "3", icon: <ListTodo size={16} />, run: () => { onClose(); onSwitchView("day"); } },
+    { label: "Subject & Topic Planner", shortcut: "S", icon: <BookOpen size={16} />, run: () => { onClose(); onSwitchView("subjects"); } },
+    { label: "Exam Preparation Hub", shortcut: "E", icon: <GraduationCap size={16} />, run: () => { onClose(); onSwitchView("exams"); } },
     { label: "Open Focus Timer", shortcut: "T", icon: <Timer size={16} />, run: () => { onClose(); onSwitchView("timer"); } },
     { label: "Toggle Dark / Light Mode", shortcut: "D", icon: <Sparkles size={16} />, run: () => { onClose(); onToggleTheme(); } },
   ].filter((a) => a.label.toLowerCase().includes(query.toLowerCase()));
@@ -779,7 +855,7 @@ function CommandPalette({ open, onClose, onNewTask, onSwitchView, onToggleTheme 
           <Command size={17} />
           <input
             autoFocus
-            placeholder="Type a command or search..."
+            placeholder="Type a command..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && onClose()}
@@ -799,30 +875,43 @@ function CommandPalette({ open, onClose, onNewTask, onSwitchView, onToggleTheme 
   );
 }
 
-function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
+function TaskModal({ initial, date, onClose, onSave, onRequestDelete, onDuplicate, busy }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [taskDate, setTaskDate] = useState(initial?.date || dateKey(date));
   const [startTime, setStartTime] = useState(initial?.startTime || "09:00");
   const [endTime, setEndTime] = useState(initial?.endTime || "10:00");
+  const [estMinutes, setEstMinutes] = useState(Number(initial?.estMinutes || 45));
   const [priority, setPriority] = useState(initial?.priority || "Medium");
-  const [category, setCategory] = useState(initial?.category || localStorage.getItem("cadence-last-category") || "Study");
+  const [category, setCategory] = useState(initial?.category || localStorage.getItem(STORAGE_KEYS.lastCategory) || "Study");
   const [repeat, setRepeat] = useState(initial?.repeat || "none");
   const [reminder, setReminder] = useState(initial?.reminder || "none");
+  const [subtasks, setSubtasks] = useState(() => Array.isArray(initial?.subtasks) ? initial.subtasks : []);
+  const [newSubtask, setNewSubtask] = useState("");
   const [template, setTemplate] = useState("");
   const [error, setError] = useState("");
 
   function applyTemplate(value) {
     setTemplate(value);
     const presets = {
-      "Study session": { title: "Study session", category: "Study", startTime: "09:00", endTime: "10:00", priority: "High" },
-      "Revision": { title: "Revise notes", category: "Study", startTime: "18:00", endTime: "19:00", priority: "Medium" },
-      "Practice questions": { title: "Practice questions", category: "Study", startTime: "10:00", endTime: "11:00", priority: "High" },
-      "Assignment": { title: "Complete assignment", category: "Study", startTime: "16:00", endTime: "17:00", priority: "High" },
-      "Work block": { title: "Focused work block", category: "Work", startTime: "09:00", endTime: "10:00", priority: "Medium" }
+      "Study session": { title: "Study session", category: "Study", startTime: "09:00", endTime: "10:00", estMinutes: 60, priority: "High" },
+      "Revision": { title: "Revise notes", category: "Study", startTime: "18:00", endTime: "19:00", estMinutes: 45, priority: "Medium" },
+      "Practice questions": { title: "Practice questions", category: "Study", startTime: "10:00", endTime: "11:00", estMinutes: 60, priority: "High" },
+      "Assignment": { title: "Complete assignment", category: "Study", startTime: "16:00", endTime: "17:00", estMinutes: 60, priority: "High" },
+      "Work block": { title: "Focused work block", category: "Work", startTime: "09:00", endTime: "10:00", estMinutes: 60, priority: "Medium" }
     };
     const p = presets[value];
-    if (p) { setTitle(p.title); setCategory(p.category); setStartTime(p.startTime); setEndTime(p.endTime); setPriority(p.priority); }
+    if (p) {
+      setTitle(p.title); setCategory(p.category); setStartTime(p.startTime);
+      setEndTime(p.endTime); setEstMinutes(p.estMinutes); setPriority(p.priority);
+    }
+  }
+
+  function addSubtaskItem() {
+    const clean = newSubtask.trim();
+    if (!clean) return;
+    setSubtasks((prev) => [...prev, { id: makeId(), title: clean, done: false }]);
+    setNewSubtask("");
   }
 
   function submit(e) {
@@ -832,7 +921,19 @@ function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
       setError("End time cannot be earlier than start time.");
       return;
     }
-    onSave({ title: title.trim(), notes: notes.trim(), date: taskDate, startTime, endTime, priority, category, repeat, reminder });
+    onSave({
+      title: title.trim(),
+      notes: notes.trim(),
+      date: taskDate,
+      startTime,
+      endTime,
+      estMinutes: Math.max(5, Math.min(720, Number(estMinutes) || 30)),
+      priority,
+      category,
+      repeat,
+      reminder,
+      subtasks
+    });
   }
 
   return (
@@ -857,7 +958,42 @@ function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
         <input autoFocus className="field-input" placeholder="What needs to be done?" value={title} onChange={(e) => setTitle(e.target.value)} />
 
         <label className="field-label">Notes</label>
-        <textarea className="field-input" placeholder="Optional details..." value={notes} onChange={(e) => setNotes(e.target.value)} rows="2" />
+        <textarea className="field-input" placeholder="Optional details or key formulas..." value={notes} onChange={(e) => setNotes(e.target.value)} rows="2" />
+
+        <label className="field-label">Subtasks ({subtasks.filter((s) => s.done).length}/{subtasks.length})</label>
+        <div className="subtask-box">
+          {subtasks.map((st) => (
+            <label key={st.id} className="subtask-row">
+              <input
+                type="checkbox"
+                checked={Boolean(st.done)}
+                onChange={() => setSubtasks((prev) => prev.map((x) => x.id === st.id ? { ...x, done: !x.done } : x))}
+              />
+              <span className={st.done ? "strike" : ""} style={{ flex: 1 }}>{st.title}</span>
+              <button
+                type="button"
+                aria-label="Remove subtask"
+                style={{ border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}
+                onClick={() => setSubtasks((prev) => prev.filter((x) => x.id !== st.id))}
+              >
+                <X size={13} />
+              </button>
+            </label>
+          ))}
+          <div className="subtask-add-row">
+            <input
+              className="field-input"
+              style={{ padding: "5px 9px", fontSize: "0.82rem" }}
+              placeholder="Add checklist step..."
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubtaskItem(); } }}
+            />
+            <button type="button" className="btn-quiet" style={{ height: 32, padding: "0 10px" }} onClick={addSubtaskItem}>
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
 
         <div className="form-grid">
           <div><label className="field-label">Date</label><input className="field-input" type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} /></div>
@@ -868,6 +1004,10 @@ function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
 
         <div className="form-grid">
           <div>
+            <label className="field-label">Est. Duration (min)</label>
+            <input className="field-input" type="number" min="5" max="720" value={estMinutes} onChange={(e) => setEstMinutes(e.target.value)} />
+          </div>
+          <div>
             <label className="field-label">Repeat</label>
             <select className="field-input" value={repeat} onChange={(e) => setRepeat(e.target.value)} disabled={Boolean(initial)}>
               <option value="none">Never</option>
@@ -876,18 +1016,17 @@ function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
               <option value="monthly">Monthly</option>
             </select>
           </div>
-          <div>
-            <label className="field-label">Reminder</label>
-            <select className="field-input" value={reminder} onChange={(e) => setReminder(e.target.value)}>
-              <option value="none">Off</option>
-              <option value="0">At start</option>
-              <option value="5">5m before</option>
-              <option value="15">15m before</option>
-              <option value="30">30m before</option>
-              <option value="60">1h before</option>
-            </select>
-          </div>
         </div>
+
+        <label className="field-label">Reminder</label>
+        <select className="field-input" value={reminder} onChange={(e) => setReminder(e.target.value)}>
+          <option value="none">Off</option>
+          <option value="0">At start</option>
+          <option value="5">5m before</option>
+          <option value="15">15m before</option>
+          <option value="30">30m before</option>
+          <option value="60">1h before</option>
+        </select>
 
         <label className="field-label">Category</label>
         <div className="category-options">
@@ -902,13 +1041,20 @@ function TaskModal({ initial, date, onClose, onSave, onRequestDelete }) {
 
         <div className="modal-actions">
           {initial && (
-            <button type="button" className="delete-button" onClick={() => onRequestDelete(initial)}>
-              <Trash2 size={16} /> Delete
-            </button>
+            <>
+              <button type="button" className="delete-button" onClick={() => onRequestDelete(initial)} disabled={busy}>
+                <Trash2 size={15} /> Delete
+              </button>
+              <button type="button" className="btn-quiet" onClick={() => onDuplicate(initial)} disabled={busy} title="Duplicate task">
+                <Copy size={14} />
+              </button>
+            </>
           )}
           <div className="actions-spacer" />
-          <button type="button" className="btn-quiet" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary"><Check size={16} /> {initial ? "Save" : "Add"}</button>
+          <button type="button" className="btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={busy}>
+            <Check size={16} /> {busy ? "Saving..." : initial ? "Save" : "Add"}
+          </button>
         </div>
       </form>
     </div>
@@ -971,13 +1117,20 @@ function OnboardingModal({ name, workspaceName, setName, setWorkspaceName, onSub
   );
 }
 
-function SettingsModal({ user, workspace, onClose, onSave, onRequestReminderPermission, saving, error, theme, setTheme, notifications, setNotifications }) {
+function SettingsModal({ user, workspace, onClose, onSave, onRequestReminderPermission, saving, error, theme, setTheme, notifications, setNotifications, dailyTargetMin, setDailyTargetMin }) {
   const [name, setName] = useState(user?.displayName || "");
   const [space, setSpace] = useState(workspace?.name || "Personal workspace");
+  const [targetHours, setTargetHours] = useState(Math.round((dailyTargetMin || 180) / 60 * 10) / 10);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    setDailyTargetMin(Math.max(15, Math.min(960, Math.round((Number(targetHours) || 3) * 60))));
+    onSave(name, space);
+  }
 
   return (
     <div className="modal-backdrop settings-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form className="settings-modal" onSubmit={(e) => { e.preventDefault(); onSave(name, space); }}>
+      <form className="settings-modal" onSubmit={handleSubmit}>
         <div className="modal-top">
           <h2>Settings</h2>
           <IconButton label="Close" onClick={onClose}><X size={19} /></IconButton>
@@ -992,9 +1145,11 @@ function SettingsModal({ user, workspace, onClose, onSave, onRequestReminderPerm
         </section>
 
         <section className="settings-section">
-          <h3>Workspace</h3>
-          <label className="field-label">Name</label>
+          <h3>Workspace & Study Target</h3>
+          <label className="field-label">Workspace Name</label>
           <input className="field-input" value={space} onChange={(e) => setSpace(e.target.value)} required minLength="2" maxLength="60" />
+          <label className="field-label">Daily Study Target (hours)</label>
+          <input className="field-input" type="number" step="0.5" min="0.5" max="16" value={targetHours} onChange={(e) => setTargetHours(e.target.value)} />
         </section>
 
         <section className="settings-section">
@@ -1042,39 +1197,35 @@ function SettingsModal({ user, workspace, onClose, onSave, onRequestReminderPerm
 
 /**
  * Timestamp-based Focus Timer:
- * Computes remaining time from `endTimestamp - Date.now()` so background tab throttling,
- * device sleep, and page refreshes never drift or lose state.
+ * Computes remaining time strictly via `endTimestamp - Date.now()` so background tab throttling,
+ * sleep, and refreshes never drift or duplicate session completions.
  */
 function loadSavedTimer() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || "null");
-    if (!raw || typeof raw !== "object") {
-      return { hours: 1, minutes: 0, durationSec: 3600, remainingSec: 3600, endTimestamp: null, running: false, label: "Deep work session" };
-    }
-    const hours = Math.min(12, Math.max(0, Number(raw.hours ?? 1)));
-    const minutes = Math.min(59, Math.max(0, Number(raw.minutes ?? 0)));
-    const durationSec = Math.max(60, Math.min(43200, Number(raw.durationSec) || (hours * 3600 + minutes * 60) || 3600));
-    const label = String(raw.label || "Deep work session");
-
-    if (raw.running && typeof raw.endTimestamp === "number") {
-      const rem = Math.max(0, Math.round((raw.endTimestamp - Date.now()) / 1000));
-      return {
-        hours, minutes, durationSec, label,
-        remainingSec: rem,
-        endTimestamp: rem > 0 ? raw.endTimestamp : null,
-        running: rem > 0,
-        expiredWhileAway: rem === 0
-      };
-    }
-
-    const rem = Math.max(0, Math.min(durationSec, Number(raw.remainingSec ?? durationSec)));
-    return { hours, minutes, durationSec, remainingSec: rem, endTimestamp: null, running: false, label, expiredWhileAway: false };
-  } catch {
-    return { hours: 1, minutes: 0, durationSec: 3600, remainingSec: 3600, endTimestamp: null, running: false, label: "Deep work session", expiredWhileAway: false };
+  const parsed = safeReadJson(STORAGE_KEYS.timer, null);
+  if (!parsed || typeof parsed !== "object") {
+    return { hours: 0, minutes: 25, durationSec: 1500, remainingSec: 1500, endTimestamp: null, running: false, label: "Deep work session", expiredWhileAway: false };
   }
+  const hours = Math.min(12, Math.max(0, Number(parsed.hours ?? 0)));
+  const minutes = Math.min(59, Math.max(0, Number(parsed.minutes ?? 25)));
+  const durationSec = Math.max(60, Math.min(43200, Number(parsed.durationSec) || (hours * 3600 + minutes * 60) || 1500));
+  const label = String(parsed.label || "Deep work session");
+
+  if (parsed.running && typeof parsed.endTimestamp === "number") {
+    const rem = Math.max(0, Math.round((parsed.endTimestamp - Date.now()) / 1000));
+    return {
+      hours, minutes, durationSec, label,
+      remainingSec: rem,
+      endTimestamp: rem > 0 ? parsed.endTimestamp : null,
+      running: rem > 0,
+      expiredWhileAway: rem === 0
+    };
+  }
+
+  const rem = Math.max(0, Math.min(durationSec, Number(parsed.remainingSec ?? durationSec)));
+  return { hours, minutes, durationSec, remainingSec: rem, endTimestamp: null, running: false, label, expiredWhileAway: false };
 }
 
-function StudyTimer({ onStartTask, tasks, user, onError }) {
+function StudyTimer({ onStartTask, tasks, user, sessions, setSessions, onError }) {
   const initialTimer = useMemo(() => loadSavedTimer(), []);
   const [hours, setHours] = useState(initialTimer.hours);
   const [minutes, setMinutes] = useState(initialTimer.minutes);
@@ -1083,51 +1234,35 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
   const [endTimestamp, setEndTimestamp] = useState(initialTimer.endTimestamp);
   const [running, setRunning] = useState(initialTimer.running);
   const [label, setLabel] = useState(initialTimer.label);
-
-  const [sessions, setSessions] = useState(() => Number(localStorage.getItem("cadence-study-sessions") || 0));
-  const [total, setTotal] = useState(() => Number(localStorage.getItem("cadence-study-total") || 0));
   const [saveError, setSaveError] = useState("");
   const completedRef = useRef(false);
 
-  // Persist timer state snapshot whenever key fields change
   useEffect(() => {
-    try {
-      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({
-        hours, minutes, durationSec, remainingSec: remaining, endTimestamp, running, label
-      }));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [hours, minutes, durationSec, remaining, endTimestamp, running, label]);
-
-  useEffect(() => {
-    if (!user?.uid || !firebaseReady) return;
-    return onSnapshot(collection(db, "users", user.uid, "studySessions"), (snapshot) => {
-      const rows = snapshot.docs.map((d) => d.data());
-      setSessions(rows.length);
-      setTotal(rows.reduce((sum, row) => sum + Number(row.durationMinutes || 0), 0));
-    }, (error) => {
-      console.error("Study history sync failed:", error);
-      setSaveError("Could not sync session history.");
-      onError?.(error, "Could not sync focus history.");
+    safeWriteJson(STORAGE_KEYS.timer, {
+      hours, minutes, durationSec, remainingSec: remaining, endTimestamp, running, label
     });
-  }, [user?.uid, onError]);
+  }, [hours, minutes, durationSec, remaining, endTimestamp, running, label]);
 
   const completeSession = useCallback(async (completedDurationSec) => {
     if (completedRef.current) return;
     completedRef.current = true;
     const mins = Math.max(1, Math.round(completedDurationSec / 60));
-    const record = {
-      title: label.trim().slice(0, 100) || "Deep work session",
+    const localId = makeId();
+    const todayStr = dateKey(getToday());
+    const cleanTitle = label.trim().slice(0, 100) || "Deep work session";
+
+    const firestorePayload = {
+      title: cleanTitle,
       durationSeconds: completedDurationSec,
       durationMinutes: mins,
       completedAt: serverTimestamp(),
-      date: dateKey(new Date()),
+      date: todayStr,
       createdAt: serverTimestamp()
     };
+
     if (user?.uid && firebaseReady) {
       try {
-        await addDoc(collection(db, "users", user.uid, "studySessions"), record);
+        await addDoc(collection(db, "users", user.uid, "studySessions"), firestorePayload);
         setSaveError("");
       } catch (error) {
         console.error("Study session save failed:", error);
@@ -1136,33 +1271,26 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
       }
     } else {
       setSaveError("");
-      setSessions((prevS) => {
-        const nextS = prevS + 1;
-        localStorage.setItem("cadence-study-sessions", String(nextS));
-        return nextS;
-      });
-      setTotal((prevT) => {
-        const nextT = prevT + mins;
-        localStorage.setItem("cadence-study-total", String(nextT));
-        return nextT;
+      setSessions((prev) => {
+        const next = [...prev, { id: localId, title: cleanTitle, durationMinutes: mins, date: todayStr }];
+        safeWriteJson(STORAGE_KEYS.sessions, next);
+        return next;
       });
     }
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Cadence Focus", { body: `"${record.title}" completed!` });
-    }
-  }, [label, user?.uid, onError]);
 
-  // If a running timer expired while page was unloaded/closed, record completion once
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Cadence Focus", { body: `"${cleanTitle}" completed!` });
+    }
+  }, [label, user?.uid, onError, setSessions]);
+
   useEffect(() => {
     if (initialTimer.expiredWhileAway) {
       void completeSession(initialTimer.durationSec);
     }
   }, [initialTimer.expiredWhileAway, initialTimer.durationSec, completeSession]);
 
-  // Timestamp-driven countdown loop + visibility/focus resync
   useEffect(() => {
     if (!running || !endTimestamp) return;
-
     const syncFromTimestamp = () => {
       const rem = Math.max(0, Math.round((endTimestamp - Date.now()) / 1000));
       setRemaining(rem);
@@ -1172,7 +1300,6 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
         void completeSession(durationSec);
       }
     };
-
     syncFromTimestamp();
     const intervalId = window.setInterval(syncFromTimestamp, 250);
     const handleVisibility = () => {
@@ -1180,7 +1307,6 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
     };
     window.addEventListener("focus", syncFromTimestamp);
     document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", syncFromTimestamp);
@@ -1238,6 +1364,7 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
   const ss = remaining % 60;
   const display = [hh, mm, ss].map((v) => String(v).padStart(2, "0")).join(":");
 
+  const totalMins = sessions.reduce((sum, s) => sum + Number(s.durationMinutes || 0), 0);
   const now = getToday();
   const weekStart = addDays(now, -((now.getDay() + 6) % 7));
   const weekTasks = tasks.filter((t) => t.date >= dateKey(weekStart) && t.date <= dateKey(addDays(weekStart, 6)));
@@ -1252,8 +1379,10 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
   return (
     <section className="study-page">
       <div className="study-heading">
-        <h1>Focus Timer</h1>
-        <span className="study-live"><i /> {running ? "RUNNING" : "LIVE"}</span>
+        <div className="study-heading-left">
+          <h1>Focus Timer</h1>
+          <span className="study-live"><i /> {running ? "RUNNING" : "LIVE"}</span>
+        </div>
       </div>
       <div className="study-layout">
         <div className="study-timer-card">
@@ -1264,10 +1393,10 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
             {remaining === 0 ? "Completed" : running ? "Synced to wall clock..." : "Ready when you are"}
           </div>
           <div className="study-controls">
-            <button className="btn-primary study-start" onClick={toggleStartPause}>
+            <button type="button" className="btn-primary study-start" onClick={toggleStartPause}>
               {running ? <Pause size={18} /> : <Play size={18} />} {running ? "Pause" : "Start"}
             </button>
-            <button className="study-reset" onClick={resetTimer} aria-label="Reset timer"><RotateCcw size={17} /></button>
+            <button type="button" className="study-reset" onClick={resetTimer} aria-label="Reset timer"><RotateCcw size={17} /></button>
           </div>
           <div className="study-duration">
             <div className="duration-fields">
@@ -1282,8 +1411,8 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
 
         <aside className="study-side">
           <div className="study-insight">
-            <div className="study-metric"><strong>{sessions}</strong><span>Sessions</span></div>
-            <div className="study-metric"><strong>{Math.floor(total / 60)}h {total % 60}m</strong><span>Focus time</span></div>
+            <div className="study-metric"><strong>{sessions.length}</strong><span>Sessions</span></div>
+            <div className="study-metric"><strong>{formatHoursMins(totalMins)}</strong><span>Focus time</span></div>
             <div className="study-metric"><strong>{completed}</strong><span>Tasks done</span></div>
           </div>
           <div className="weekly-report">
@@ -1294,7 +1423,7 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
           </div>
           <div className="study-templates">
             <div>
-              {[15, 25, 45, 60, 90, 120].map((n) => (
+              {[25, 50, 90, 120].map((n) => (
                 <button type="button" key={n} onClick={() => selectPreset(n)}>
                   {n < 60 ? n + "m" : n / 60 + "h"}
                 </button>
@@ -1303,6 +1432,324 @@ function StudyTimer({ onStartTask, tasks, user, onError }) {
           </div>
           <button type="button" className="study-add-task" onClick={onStartTask}><Plus size={16} /> Add task</button>
         </aside>
+      </div>
+    </section>
+  );
+}
+
+/* Study Dashboard & Productivity Analytics (#2 & #10) */
+function StudyDashboardView({ tasks, sessions, subjects, dailyTargetMin }) {
+  const now = getToday();
+  const todayStr = dateKey(now);
+  const weekStartStr = dateKey(addDays(now, -((now.getDay() + 6) % 7)));
+  const monthPrefix = todayStr.slice(0, 7);
+
+  const todayMins = sessions.filter((s) => s.date === todayStr).reduce((acc, s) => acc + Number(s.durationMinutes || 0), 0);
+  const weekMins = sessions.filter((s) => s.date >= weekStartStr).reduce((acc, s) => acc + Number(s.durationMinutes || 0), 0);
+  const monthMins = sessions.filter((s) => String(s.date || "").startsWith(monthPrefix)).reduce((acc, s) => acc + Number(s.durationMinutes || 0), 0);
+
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const pendingTasks = tasks.length - completedTasks;
+  const targetPct = Math.min(100, Math.round((todayMins / Math.max(1, dailyTargetMin)) * 100));
+
+  // Streak calculation across active study/task days
+  const activeDates = new Set([
+    ...sessions.filter((s) => Number(s.durationMinutes || 0) > 0).map((s) => s.date),
+    ...tasks.filter((t) => t.completed).map((t) => t.date)
+  ]);
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const dStr = dateKey(addDays(now, -i));
+    if (activeDates.has(dStr)) streak += 1;
+    else if (i > 0) break;
+  }
+
+  const productivityScore = Math.min(
+    100,
+    Math.round((tasks.length ? (completedTasks / tasks.length) * 55 : 25) + targetPct * 0.45)
+  );
+
+  const plannedMins = tasks.reduce((acc, t) => acc + Number(t.estMinutes || 45), 0);
+  const actualMins = sessions.reduce((acc, s) => acc + Number(s.durationMinutes || 0), 0);
+
+  return (
+    <section>
+      <div className="study-heading">
+        <div className="study-heading-left">
+          <h1>Study Dashboard & Analytics</h1>
+        </div>
+      </div>
+
+      <section className="stats-grid">
+        <div className="stat-card stat-highlight">
+          <div className="stat-top"><span>Today Focus</span><span className="stat-icon"><Target size={17} /></span></div>
+          <div className="stat-main">
+            <strong>{formatHoursMins(todayMins)}</strong>
+            <div className="progress-ring" style={{ "--progress": (targetPct * 3.6) + "deg" }}>
+              <div>{targetPct}%</div>
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-top"><span>Weekly / Monthly</span><span className="stat-icon pale-blue"><BarChart3 size={17} /></span></div>
+          <div className="stat-number" style={{ fontSize: "1.2rem" }}>{formatHoursMins(weekMins)} · {formatHoursMins(monthMins)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-top"><span>Streak & Score</span><span className="stat-icon pale-amber"><Flame size={17} /></span></div>
+          <div className="stat-number" style={{ fontSize: "1.2rem" }}>{streak}d streak · {productivityScore}/100</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-top"><span>Done / Pending</span><span className="stat-icon pale-green"><CheckCircle2 size={17} /></span></div>
+          <div className="stat-number" style={{ fontSize: "1.2rem" }}>{completedTasks} done · {pendingTasks} left</div>
+        </div>
+      </section>
+
+      <div className="two-col-grid">
+        <div className="module-card">
+          <h3 style={{ marginTop: 0 }}>Planned vs. Actual Study Time</h3>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+            Planned: <b>{formatHoursMins(plannedMins)}</b> · Logged Focus: <b>{formatHoursMins(actualMins)}</b>
+          </p>
+          {CATEGORIES.map((cat) => {
+            const catTasks = tasks.filter((t) => t.category === cat);
+            const doneCat = catTasks.filter((t) => t.completed).length;
+            const pct = catTasks.length ? Math.round((doneCat / catTasks.length) * 100) : 0;
+            return (
+              <div key={cat} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.84rem", marginBottom: 4 }}>
+                  <b>{cat}</b>
+                  <span>{doneCat}/{catTasks.length} ({pct}%)</span>
+                </div>
+                <div className="progress-track"><span style={{ width: pct + "%" }} /></div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="module-card">
+          <h3 style={{ marginTop: 0 }}>Subject Performance</h3>
+          {subjects.length ? subjects.map((sub) => {
+            const topics = sub.topics || [];
+            const doneTopics = topics.filter((tp) => tp.completed).length;
+            const pct = topics.length ? Math.round((doneTopics / topics.length) * 100) : 0;
+            return (
+              <div key={sub.id} className="item-row-card">
+                <div className="item-row-main">
+                  <strong>{sub.name}</strong>
+                  <small>Target: {sub.weeklyTargetHours || 6}h/wk · {doneTopics}/{topics.length} topics done</small>
+                </div>
+                <span className="badge-pill">{pct}%</span>
+              </div>
+            );
+          }) : (
+            <p style={{ color: "var(--text-muted)", fontSize: "0.86rem" }}>
+              No subjects added yet. Open Subject Planner to track chapters, difficulty, and study targets.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Subject-Wise Study Planner (#5) */
+function SubjectPlannerView({ subjects, setSubjects, onNotify }) {
+  const [name, setName] = useState("");
+  const [weeklyTargetHours, setWeeklyTargetHours] = useState(6);
+  const [topicInputs, setTopicInputs] = useState({});
+
+  function addSubject(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    const next = [...subjects, {
+      id: makeId(),
+      name: name.trim(),
+      weeklyTargetHours: Math.max(1, Math.min(80, Number(weeklyTargetHours) || 6)),
+      topics: []
+    }];
+    setSubjects(next);
+    safeWriteJson(STORAGE_KEYS.subjects, next);
+    setName("");
+    onNotify("Subject added");
+  }
+
+  function addTopic(subId) {
+    const draft = topicInputs[subId] || { title: "", difficulty: "Medium", plannedMinutes: 60 };
+    if (!draft.title?.trim()) return;
+    const next = subjects.map((s) => s.id === subId ? {
+      ...s,
+      topics: [...(s.topics || []), {
+        id: makeId(),
+        title: draft.title.trim(),
+        difficulty: draft.difficulty || "Medium",
+        plannedMinutes: Number(draft.plannedMinutes) || 60,
+        completed: false
+      }]
+    } : s);
+    setSubjects(next);
+    safeWriteJson(STORAGE_KEYS.subjects, next);
+    setTopicInputs((prev) => ({ ...prev, [subId]: { title: "", difficulty: "Medium", plannedMinutes: 60 } }));
+  }
+
+  function toggleTopic(subId, topicId) {
+    const next = subjects.map((s) => s.id === subId ? {
+      ...s,
+      topics: (s.topics || []).map((tp) => tp.id === topicId ? { ...tp, completed: !tp.completed } : tp)
+    } : s);
+    setSubjects(next);
+    safeWriteJson(STORAGE_KEYS.subjects, next);
+  }
+
+  return (
+    <section>
+      <div className="study-heading">
+        <div className="study-heading-left"><h1>Subject & Topic Planner</h1></div>
+      </div>
+
+      <form onSubmit={addSubject} className="module-card" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+        <input className="field-input" style={{ flex: 1, minWidth: 200 }} placeholder="Subject or course name (e.g. Structural Analysis)" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="field-input" style={{ width: 150 }} type="number" min="1" max="80" value={weeklyTargetHours} onChange={(e) => setWeeklyTargetHours(e.target.value)} aria-label="Weekly target hours" />
+        <button type="submit" className="btn-primary"><Plus size={16} /> Add Subject</button>
+      </form>
+
+      <div className="two-col-grid">
+        {subjects.map((sub) => {
+          const draft = topicInputs[sub.id] || { title: "", difficulty: "Medium", plannedMinutes: 60 };
+          const topics = sub.topics || [];
+          const done = topics.filter((t) => t.completed).length;
+          const pct = topics.length ? Math.round((done / topics.length) * 100) : 0;
+          return (
+            <div key={sub.id} className="module-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <h3 style={{ margin: 0 }}>{sub.name}</h3>
+                <span className="badge-pill">{pct}% ({done}/{topics.length})</span>
+              </div>
+              <div className="progress-track" style={{ marginBottom: 12 }}><span style={{ width: pct + "%" }} /></div>
+
+              {topics.map((tp) => (
+                <div key={tp.id} className="item-row-card" style={{ padding: "8px 12px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, cursor: "pointer" }}>
+                    <input type="checkbox" checked={Boolean(tp.completed)} onChange={() => toggleTopic(sub.id, tp.id)} />
+                    <span className={tp.completed ? "strike" : ""} style={{ fontSize: "0.86rem", fontWeight: 500 }}>{tp.title}</span>
+                  </label>
+                  <span className={"badge-pill " + (tp.difficulty === "Hard" ? "badge-weak" : "")}>{tp.difficulty} · {tp.plannedMinutes}m</span>
+                </div>
+              ))}
+
+              <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                <input
+                  className="field-input"
+                  style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: "0.84rem" }}
+                  placeholder="Add chapter / topic..."
+                  value={draft.title}
+                  onChange={(e) => setTopicInputs((prev) => ({ ...prev, [sub.id]: { ...draft, title: e.target.value } }))}
+                />
+                <select
+                  className="field-input"
+                  style={{ width: 105, padding: "6px 8px", fontSize: "0.84rem" }}
+                  value={draft.difficulty}
+                  onChange={(e) => setTopicInputs((prev) => ({ ...prev, [sub.id]: { ...draft, difficulty: e.target.value } }))}
+                >
+                  {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
+                </select>
+                <button type="button" className="btn-primary" style={{ height: 34, padding: "0 12px" }} onClick={() => addTopic(sub.id)}>
+                  <Plus size={14} /> Topic
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* Exam Preparation Hub (#6) */
+function ExamPrepView({ exams, setExams, mocks, setMocks, onNotify }) {
+  const [examTitle, setExamTitle] = useState("");
+  const [examDate, setExamDate] = useState(() => dateKey(addDays(getToday(), 30)));
+  const [mockName, setMockName] = useState("");
+  const [mockScore, setMockScore] = useState(75);
+  const [weakTopic, setWeakTopic] = useState("");
+
+  function addExam(e) {
+    e.preventDefault();
+    if (!examTitle.trim() || !examDate) return;
+    const next = [...exams, { id: makeId(), title: examTitle.trim(), date: examDate, syllabusPct: 0 }];
+    setExams(next);
+    safeWriteJson(STORAGE_KEYS.exams, next);
+    setExamTitle("");
+    onNotify("Exam added");
+  }
+
+  function addMock(e) {
+    e.preventDefault();
+    if (!mockName.trim()) return;
+    const next = [...mocks, {
+      id: makeId(),
+      name: mockName.trim(),
+      score: Math.max(0, Math.min(100, Number(mockScore) || 0)),
+      weakTopic: weakTopic.trim()
+    }];
+    setMocks(next);
+    safeWriteJson(STORAGE_KEYS.mocks, next);
+    setMockName("");
+    setWeakTopic("");
+    onNotify("Mock test logged");
+  }
+
+  const nowMs = fromKey(dateKey(getToday())).getTime();
+
+  return (
+    <section>
+      <div className="study-heading">
+        <div className="study-heading-left"><h1>Exam Preparation Hub</h1></div>
+      </div>
+
+      <div className="two-col-grid">
+        <div className="module-card">
+          <h3 style={{ marginTop: 0 }}>Exam Countdowns & Syllabus</h3>
+          <form onSubmit={addExam} style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            <input className="field-input" style={{ flex: 1, minWidth: 150 }} placeholder="Exam name (e.g. GATE CE)" value={examTitle} onChange={(e) => setExamTitle(e.target.value)} />
+            <input className="field-input" style={{ width: 155 }} type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
+            <button type="submit" className="btn-primary"><Plus size={15} /> Add</button>
+          </form>
+
+          {exams.map((ex) => {
+            const diffDays = Math.ceil((fromKey(ex.date).getTime() - nowMs) / 86400000);
+            return (
+              <div key={ex.id} className="item-row-card">
+                <div className="item-row-main">
+                  <strong>{ex.title}</strong>
+                  <small>Exam date: {ex.date} · Revision due in {Math.max(1, Math.min(7, diffDays))}d</small>
+                </div>
+                <span className={"badge-pill " + (diffDays <= 14 ? "badge-weak" : "badge-good")}>
+                  {diffDays > 0 ? `${diffDays}d left` : diffDays === 0 ? "Today" : "Passed"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="module-card">
+          <h3 style={{ marginTop: 0 }}>Mock Tests & Weak Topics</h3>
+          <form onSubmit={addMock} style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            <input className="field-input" style={{ flex: 1, minWidth: 130 }} placeholder="Mock test title" value={mockName} onChange={(e) => setMockName(e.target.value)} />
+            <input className="field-input" style={{ width: 85 }} type="number" min="0" max="100" value={mockScore} onChange={(e) => setMockScore(e.target.value)} aria-label="Score percent" />
+            <input className="field-input" style={{ flex: 1, minWidth: 130 }} placeholder="Weak topic to revise" value={weakTopic} onChange={(e) => setWeakTopic(e.target.value)} />
+            <button type="submit" className="btn-primary"><Award size={15} /> Log</button>
+          </form>
+
+          {mocks.map((m) => (
+            <div key={m.id} className="item-row-card">
+              <div className="item-row-main">
+                <strong>{m.name}</strong>
+                <small>{m.weakTopic ? `Weak area: ${m.weakTopic}` : "No weak topic flagged"}</small>
+              </div>
+              <span className={"badge-pill " + (m.score < 60 ? "badge-weak" : "badge-good")}>{m.score}%</span>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -1355,7 +1802,7 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
           <div className="hero-copy">
             <div className="hero-badge"><Zap size={14} /> Built for high-focus days</div>
             <h1>Find your<br />daily <span>cadence.</span></h1>
-            <p className="hero-description">Tasks, calendar, and drift-free focus timer unified in one calm, keyboard-first workspace.</p>
+            <p className="hero-description">Tasks, calendar, subject planner, exam prep, and drift-free focus timer in one calm workspace.</p>
             <div className="hero-actions">
               <button className="hero-primary" onClick={onStart}>Get started free <ArrowRight size={17} /></button>
               <button className="hero-secondary" onClick={onDemo}>Try live demo</button>
@@ -1373,7 +1820,8 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
                 <div className="preview-sidebar">
                   <div className="preview-logo"><Sparkles size={14} /> cadence.</div>
                   <div className="preview-nav-active"><CalendarDays size={13} /> Calendar</div>
-                  <div><ListTodo size={13} /> Today</div>
+                  <div><LayoutDashboard size={13} /> Dashboard</div>
+                  <div><BookOpen size={13} /> Subjects</div>
                   <div><Timer size={13} /> Timer</div>
                 </div>
                 <div className="preview-main">
@@ -1401,13 +1849,13 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
           <div className="feature-grid">
             <article className="feature-card">
               <div className="feature-icon feature-lilac"><CalendarDays size={21} /></div>
-              <h3>Fluid Calendar</h3>
-              <p>Switch seamlessly between Month, Week, and Day views with instant drag-and-drop rescheduling.</p>
+              <h3>Fluid Calendar & Tasks</h3>
+              <p>Month, week, and day views with subtasks, priority flags, drag-and-drop, and undoable deletes.</p>
             </article>
             <article className="feature-card">
               <div className="feature-icon feature-blue"><ShieldCheck size={21} /></div>
-              <h3>Real-time Cloud Sync</h3>
-              <p>Powered by Firebase with batched recurring series writes and instant error recovery.</p>
+              <h3>Subject & Exam Planning</h3>
+              <p>Track syllabus completion, topic difficulty, exam countdowns, and mock test weak areas.</p>
             </article>
             <article className="feature-card">
               <div className="feature-icon feature-peach"><Timer size={21} /></div>
@@ -1421,8 +1869,8 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
           <div className="how-heading"><h2>Workflow</h2></div>
           <div className="how-steps">
             <article><b>01</b><h3>Create space</h3><p>Launch a personal workspace in seconds—online or offline.</p></article>
-            <article><b>02</b><h3>Time-block tasks</h3><p>Capture quick tasks or set recurring study and work blocks.</p></article>
-            <article><b>03</b><h3>Execute with focus</h3><p>Launch the wall-clock timer and watch your daily ring close.</p></article>
+            <article><b>02</b><h3>Plan & time-block</h3><p>Organize subjects, exam milestones, and recurring study blocks.</p></article>
+            <article><b>03</b><h3>Execute & review</h3><p>Run the wall-clock timer and track weekly velocity and streaks.</p></article>
           </div>
         </section>
 
@@ -1431,9 +1879,9 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
           <div className="pricing-card">
             <div className="pricing-price">Free</div>
             <ul>
-              <li><Check size={15} /> Unlimited tasks & recurring schedules</li>
-              <li><Check size={15} /> Month, week, and day calendar views</li>
-              <li><Check size={15} /> Real-time Firebase cloud sync</li>
+              <li><Check size={15} /> Unlimited tasks, subtasks & recurring schedules</li>
+              <li><Check size={15} /> Study dashboard, subject planner & exam hub</li>
+              <li><Check size={15} /> Real-time Firebase cloud sync & offline fallback</li>
             </ul>
             <button onClick={onStart}>Get started <ArrowRight size={16} /></button>
           </div>
@@ -1450,46 +1898,61 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo }) {
 
 export default function App() {
   const today = useMemo(() => getToday(), []);
+  const todayStr = dateKey(today);
+
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [savingBusy, setSavingBusy] = useState(false);
+
+  const [sessions, setSessions] = useState(() => safeReadJson(STORAGE_KEYS.sessions, []));
+  const [subjects, setSubjects] = useState(() => safeReadJson(STORAGE_KEYS.subjects, [
+    { id: "sub-1", name: "Core Subject", weeklyTargetHours: 8, topics: [] }
+  ]));
+  const [exams, setExams] = useState(() => safeReadJson(STORAGE_KEYS.exams, []));
+  const [mocks, setMocks] = useState(() => safeReadJson(STORAGE_KEYS.mocks, []));
+  const [dailyTargetMin, setDailyTargetMin] = useState(() => Number(localStorage.getItem(STORAGE_KEYS.dailyTargetMin) || 180));
+
   const [selectedDate, setSelectedDate] = useState(today);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [view, setView] = useState("month");
   const [modal, setModal] = useState(null);
   const [pendingDeleteTask, setPendingDeleteTask] = useState(null);
-  const [deletedBackup, setDeletedBackup] = useState(null);
   const [cmdOpen, setCmdOpen] = useState(false);
+
   const [authUser, setAuthUser] = useState(null);
   const [workspace, setWorkspace] = useState(null);
   const [globalError, setGlobalError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
-  const [defaultCategory, setDefaultCategory] = useState(() => localStorage.getItem("cadence-last-category") || "Study");
+  const [defaultCategory, setDefaultCategory] = useState(() => localStorage.getItem(STORAGE_KEYS.lastCategory) || "Study");
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Personal workspace");
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileError, setProfileError] = useState("");
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsError, setSettingsError] = useState("");
-  const [theme, setTheme] = useState(() => localStorage.getItem("cadence-theme") || "light");
-  const [notifications, setNotifications] = useState(() => localStorage.getItem("cadence-notifications") !== "off");
+  const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.theme) || "light");
+  const [notifications, setNotifications] = useState(() => localStorage.getItem(STORAGE_KEYS.notifications) !== "off");
 
   const notify = useCallback((message, undoFn = null) => {
     setToast(undoFn ? { message, undoFn } : { message, undoFn: null });
     window.clearTimeout(window.__cadenceToast);
-    window.__cadenceToast = window.setTimeout(() => {
-      setToast("");
-      setDeletedBackup(null);
-    }, undoFn ? 5000 : 2400);
+    window.__cadenceToast = window.setTimeout(() => setToast(""), undoFn ? 5000 : 2400);
   }, []);
 
   const reportError = useCallback((err, fallbackMsg) => {
@@ -1497,6 +1960,17 @@ export default function App() {
     setGlobalError(friendly);
     notify(friendly);
   }, [notify]);
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -1513,6 +1987,9 @@ export default function App() {
       else if (k === "1") setView("month");
       else if (k === "2") setView("week");
       else if (k === "3") setView("day");
+      else if (k === "a") setView("dashboard");
+      else if (k === "s") setView("subjects");
+      else if (k === "e") setView("exams");
       else if (k === "t") setView("timer");
       else if (k === "d") setTheme((prev) => (prev === "dark" ? "light" : "dark"));
     };
@@ -1523,7 +2000,7 @@ export default function App() {
   // Auth & workspace setup
   useEffect(() => {
     if (!firebaseReady) {
-      try { setTasks(JSON.parse(localStorage.getItem("cadence-tasks") || "[]")); } catch { setTasks([]); }
+      setTasks(safeReadJson(STORAGE_KEYS.tasks, []));
       setTasksLoading(false);
       return;
     }
@@ -1565,10 +2042,10 @@ export default function App() {
     }, (error) => console.error("Profile sync failed:", error));
   }, [userUid]);
 
-  // Tasks sync (depends only on userUid to prevent unnecessary listener recreation)
+  // Tasks sync (depends only on userUid)
   useEffect(() => {
     if (!userUid || !firebaseReady) {
-      try { setTasks(JSON.parse(localStorage.getItem("cadence-tasks") || "[]")); } catch { setTasks([]); }
+      setTasks(safeReadJson(STORAGE_KEYS.tasks, []));
       setTasksLoading(false);
       return;
     }
@@ -1586,23 +2063,36 @@ export default function App() {
     );
   }, [userUid, reportError]);
 
+  // Study sessions sync when signed in
   useEffect(() => {
-    if (!userUid) localStorage.setItem("cadence-tasks", JSON.stringify(tasks));
+    if (!userUid || !firebaseReady) return;
+    return onSnapshot(
+      collection(db, "users", userUid, "studySessions"),
+      (snapshot) => {
+        setSessions(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      },
+      (error) => console.error("Sessions sync failed:", error)
+    );
+  }, [userUid]);
+
+  useEffect(() => {
+    if (!userUid) safeWriteJson(STORAGE_KEYS.tasks, tasks);
   }, [tasks, userUid]);
 
-  useEffect(() => { localStorage.setItem("cadence-theme", theme); }, [theme]);
-  useEffect(() => { localStorage.setItem("cadence-notifications", notifications ? "on" : "off"); }, [notifications]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.theme, theme); }, [theme]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.notifications, notifications ? "on" : "off"); }, [notifications]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.dailyTargetMin, String(dailyTargetMin)); }, [dailyTargetMin]);
 
-  // Reminder notifications
+  // Reminders & overdue alerts
   useEffect(() => {
     if (!notifications || !("Notification" in window) || Notification.permission !== "granted") return;
     const checkReminders = () => {
-      const now = Date.now();
+      const nowMs = Date.now();
       tasks.forEach((task) => {
         if (task.completed || !task.reminder || task.reminder === "none" || !task.startTime) return;
         const due = new Date(task.date + "T" + task.startTime).getTime() - Number(task.reminder) * 60000;
         const key = "cadence-reminded-" + task.id + "-" + task.date;
-        if (now >= due && now < due + 60000 && !localStorage.getItem(key)) {
+        if (nowMs >= due && nowMs < due + 60000 && !localStorage.getItem(key)) {
           new Notification(task.title, { body: Number(task.reminder) === 0 ? "Starting now" : "In " + task.reminder + "m" });
           localStorage.setItem(key, "1");
         }
@@ -1614,12 +2104,32 @@ export default function App() {
   }, [tasks, notifications]);
 
   const completedCount = tasks.filter((t) => t.completed).length;
-  const todayTasks = tasks.filter((t) => t.date === dateKey(today));
+  const todayTasks = tasks.filter((t) => t.date === todayStr);
   const todayDone = todayTasks.filter((t) => t.completed).length;
   const progress = todayTasks.length ? Math.round((todayDone / todayTasks.length) * 100) : 0;
-  const selectedTasks = tasks.filter((t) => t.date === dateKey(selectedDate)).sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
-  const visibleTasks = selectedTasks.filter((t) => (filter === "All" || t.category === filter) && (!search || t.title.toLowerCase().includes(search.toLowerCase())));
-  const upcoming = tasks.filter((t) => !t.completed && t.date >= dateKey(today)).sort((a, b) => (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || ""))).slice(0, 4);
+
+  const priorityRank = { High: 0, Medium: 1, Low: 2 };
+  const selectedTasks = useMemo(() => {
+    const list = tasks.filter((t) => t.date === dateKey(selectedDate));
+    return [...list].sort((a, b) => {
+      if (sortByPriority) {
+        const pDiff = (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
+        if (pDiff !== 0) return pDiff;
+      }
+      return (a.startTime || "").localeCompare(b.startTime || "");
+    });
+  }, [tasks, selectedDate, sortByPriority]);
+
+  const visibleTasks = selectedTasks.filter(
+    (t) => (filter === "All" || t.category === filter) && (!search || t.title.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const upcoming = tasks
+    .filter((t) => !t.completed && t.date >= todayStr)
+    .sort((a, b) => (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || "")))
+    .slice(0, 4);
+
+  const overdueCount = tasks.filter((t) => !t.completed && t.date < todayStr).length;
   const weekStart = addDays(selectedDate, -((selectedDate.getDay() + 6) % 7));
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const monthCells = useMemo(() => {
@@ -1631,9 +2141,9 @@ export default function App() {
   async function saveTask(data) {
     if (data.category) {
       setDefaultCategory(data.category);
-      localStorage.setItem("cadence-last-category", data.category);
+      localStorage.setItem(STORAGE_KEYS.lastCategory, data.category);
     }
-
+    setSavingBusy(true);
     try {
       if (modal?.task) {
         const updateData = {
@@ -1642,9 +2152,11 @@ export default function App() {
           date: data.date,
           startTime: data.startTime,
           endTime: data.endTime,
+          estMinutes: data.estMinutes,
           priority: data.priority,
           category: data.category,
-          reminder: data.reminder
+          reminder: data.reminder,
+          subtasks: data.subtasks
         };
         if (userUid && firebaseReady) {
           await updateDoc(doc(db, "users", userUid, "tasks", modal.task.id), updateData);
@@ -1691,6 +2203,39 @@ export default function App() {
     } catch (error) {
       console.error("Task save failed:", error);
       reportError(error, "Could not save task.");
+    } finally {
+      setSavingBusy(false);
+    }
+  }
+
+  async function duplicateTask(sourceTask) {
+    setSavingBusy(true);
+    try {
+      const clone = {
+        title: `${sourceTask.title} (Copy)`,
+        notes: sourceTask.notes || "",
+        date: sourceTask.date || todayStr,
+        startTime: sourceTask.startTime || "09:00",
+        endTime: sourceTask.endTime || "10:00",
+        estMinutes: Number(sourceTask.estMinutes || 45),
+        priority: sourceTask.priority || "Medium",
+        category: sourceTask.category || "Study",
+        repeat: "none",
+        reminder: sourceTask.reminder || "none",
+        subtasks: (sourceTask.subtasks || []).map((s) => ({ ...s, id: makeId(), done: false })),
+        completed: false
+      };
+      if (userUid && firebaseReady) {
+        await addDoc(collection(db, "users", userUid, "tasks"), { ...clone, createdAt: serverTimestamp() });
+      } else {
+        setTasks((items) => [...items, { ...clone, id: makeId() }]);
+      }
+      setModal(null);
+      notify("Task duplicated");
+    } catch (error) {
+      reportError(error, "Could not duplicate task.");
+    } finally {
+      setSavingBusy(false);
     }
   }
 
@@ -1698,21 +2243,18 @@ export default function App() {
     e.preventDefault();
     const title = quickTaskTitle.trim();
     if (!title) return;
-    try {
-      await saveTask({
-        title, notes: "", date: dateKey(selectedDate || today),
-        startTime: "", endTime: "", priority: "Medium",
-        category: defaultCategory, repeat: "none", reminder: "none"
-      });
-      setQuickTaskTitle("");
-    } catch (error) {
-      reportError(error, "Could not add task.");
-    }
+    await saveTask({
+      title, notes: "", date: dateKey(selectedDate || today),
+      startTime: "", endTime: "", estMinutes: 45, priority: "Medium",
+      category: defaultCategory, repeat: "none", reminder: "none", subtasks: []
+    });
+    setQuickTaskTitle("");
   }
 
   async function confirmDeleteTask(taskToDelete) {
     setPendingDeleteTask(null);
     setModal(null);
+    setSavingBusy(true);
     const backup = { ...taskToDelete };
     delete backup.id;
 
@@ -1722,17 +2264,17 @@ export default function App() {
       } else {
         setTasks((items) => items.filter((t) => t.id !== taskToDelete.id));
       }
-      setDeletedBackup(backup);
       notify("Task deleted", async () => {
         if (userUid && firebaseReady) {
           await addDoc(collection(db, "users", userUid, "tasks"), { ...backup, createdAt: serverTimestamp() });
         } else {
           setTasks((items) => [...items, { ...backup, id: makeId() }]);
         }
-        setDeletedBackup(null);
       });
     } catch (error) {
       reportError(error, "Could not delete task.");
+    } finally {
+      setSavingBusy(false);
     }
   }
 
@@ -1842,6 +2384,7 @@ export default function App() {
 
   const toastText = typeof toast === "string" ? toast : toast?.message;
   const toastUndo = typeof toast === "object" ? toast?.undoFn : null;
+  const isCalendarView = ["month", "week", "day"].includes(view);
 
   if (!authUser && !showDashboard) {
     return (
@@ -1871,14 +2414,22 @@ export default function App() {
   const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const displayFirstName = authUser?.displayName?.trim()?.split(" ")[0];
 
+  const navItems = [
+    { id: "month", label: "Calendar", icon: <CalendarDays size={18} />, count: tasks.length },
+    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+    { id: "subjects", label: "Subjects", icon: <BookOpen size={18} /> },
+    { id: "exams", label: "Exam Prep", icon: <GraduationCap size={18} /> },
+    { id: "timer", label: "Focus Timer", icon: <Timer size={18} /> },
+  ];
+
   return (
     <div className={"app-shell " + (isDark ? "theme-dark" : "")}>
       <style>{GLOBAL_STYLES}</style>
-      <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
+      <aside className={"sidebar " + (mobileNav ? "sidebar-open " : "") + (sidebarCollapsed ? "collapsed" : "")}>
         <div className="brand-row">
           <div className="brand">
             <div className="brand-icon"><Sparkles size={19} strokeWidth={2.4} /></div>
-            <span>cadence<span className="brand-period">.</span></span>
+            <span className="brand-text">cadence<span className="brand-period">.</span></span>
           </div>
           <IconButton label="Close menu" className="sidebar-close" onClick={() => setMobileNav(false)}>
             <X size={18} />
@@ -1886,32 +2437,38 @@ export default function App() {
         </div>
 
         <nav className="main-nav">
-          <button className={"nav-item " + (view !== "timer" ? "nav-active" : "")} onClick={() => { setView("month"); setMobileNav(false); }}>
-            <CalendarDays size={18} /> Calendar <span className="nav-count">{tasks.length}</span>
-          </button>
-          <button className={"nav-item " + (view === "timer" ? "nav-active" : "")} onClick={() => { setView("timer"); setMobileNav(false); }}>
-            <Timer size={18} /> Focus Timer
-          </button>
-          <button className="nav-item" onClick={() => { chooseDate(today); setView("day"); setMobileNav(false); }}>
-            <ListTodo size={18} /> Today
-          </button>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={"nav-item " + (view === item.id || (item.id === "month" && ["week", "day"].includes(view)) ? "nav-active" : "")}
+              onClick={() => { setView(item.id); setMobileNav(false); }}
+              title={item.label}
+            >
+              {item.icon}
+              <span className="nav-label">{item.label}</span>
+              {typeof item.count === "number" && <span className="nav-count">{item.count}</span>}
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-divider" />
 
         <div className="category-heading">
           <span>CATEGORIES</span>
-          <button aria-label="Add task" onClick={() => openNewTask()}><Plus size={15} /></button>
+          <button type="button" aria-label="Add task" onClick={() => openNewTask()}><Plus size={15} /></button>
         </div>
 
         <div className="category-nav">
           {CATEGORIES.map((c) => (
             <button
               key={c}
+              type="button"
               onClick={() => { setFilter(filter === c ? "All" : c); setView("month"); setMobileNav(false); }}
               className={"category-nav-item " + (filter === c ? "category-nav-selected" : "")}
             >
-              <span className={"category-dot " + COLORS[c]} />{c}
+              <span className={"category-dot " + COLORS[c]} />
+              <span className="category-nav-label">{c}</span>
               <span className="category-total">{tasks.filter((t) => t.category === c).length}</span>
             </button>
           ))}
@@ -1929,6 +2486,7 @@ export default function App() {
               <span>{authUser ? "Cloud Synced" : "Offline Mode"}</span>
             </div>
             <button
+              type="button"
               className="profile-action"
               onClick={() => authUser ? setSettingsOpen(true) : firebaseReady ? setAuthOpen(true) : notify("Offline mode")}
               title={authUser ? "Settings" : "Sign in"}
@@ -1939,28 +2497,29 @@ export default function App() {
         </div>
       </aside>
 
-      {mobileNav && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
+      {mobileNav && <button type="button" className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
 
       <main className="main-area">
         <header className="topbar">
           <div className="topbar-left">
             <IconButton label="Menu" className="menu-toggle" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></IconButton>
+            <IconButton label="Toggle sidebar" onClick={() => setSidebarCollapsed((v) => !v)}><Layers size={16} /></IconButton>
             <span className="breadcrumb">
-              {workspace?.name || "Workspace"} <span>/</span> <b>{view === "timer" ? "Focus Timer" : "Calendar"}</b>
+              {workspace?.name || "Workspace"} <span>/</span> <b>{navItems.find((n) => n.id === view)?.label || "Calendar"}</b>
             </span>
           </div>
           <div className="topbar-right">
-            <button className="kbd-hint" onClick={() => setCmdOpen(true)} title="Command Palette">
+            <button type="button" className="kbd-hint" onClick={() => setCmdOpen(true)} title="Command Palette">
               <Command size={13} /> <span>⌘K</span>
             </button>
-            <div className={"sync-status " + (authUser ? "synced" : "")}>
-              {authUser ? <Cloud size={15} /> : <CloudOff size={15} />}
-              <span>{authUser ? "Synced" : "Local"}</span>
+            <div className={"sync-status " + (authUser && isOnline ? "synced" : "")}>
+              {authUser && isOnline ? <Cloud size={15} /> : <CloudOff size={15} />}
+              <span>{!isOnline ? "Offline" : authUser ? "Synced" : "Local"}</span>
             </div>
             {authUser
-              ? <button className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Out</button>
-              : <button className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Offline mode")}><LogIn size={15} /> In</button>}
-            <button className="top-avatar top-avatar-button" onClick={() => authUser && setSettingsOpen(true)} aria-label="Settings">
+              ? <button type="button" className="top-signin" onClick={() => signOut(auth)}><LogOut size={15} /> Out</button>
+              : <button type="button" className="top-signin" onClick={() => firebaseReady ? setAuthOpen(true) : notify("Offline mode")}><LogIn size={15} /> In</button>}
+            <button type="button" className="top-avatar top-avatar-button" onClick={() => authUser && setSettingsOpen(true)} aria-label="Settings">
               {authUser?.photoURL
                 ? <img src={authUser.photoURL} alt="" />
                 : authUser?.displayName?.trim()?.[0]?.toUpperCase() || authUser?.email?.[0]?.toUpperCase() || "C"}
@@ -1981,7 +2540,10 @@ export default function App() {
           <div className="welcome-row">
             <div className="welcome-copy">
               <h1>{greeting()}{displayFirstName ? `, ${displayFirstName}` : ""}</h1>
-              <span className="date-overline">{fullDay(today)}</span>
+              <span className="date-overline">
+                {fullDay(today)}
+                {overdueCount > 0 && <span className="overdue-tag">{overdueCount} overdue</span>}
+              </span>
             </div>
             <form onSubmit={addQuickTask} className="quick-add-form">
               <input
@@ -1991,14 +2553,14 @@ export default function App() {
                 placeholder="Quick add task..."
                 aria-label="New task"
               />
-              <button className="btn-primary" type="submit" disabled={!quickTaskTitle.trim()}>
-                <Plus size={16} /> Add
+              <button className="btn-primary" type="submit" disabled={!quickTaskTitle.trim() || savingBusy}>
+                <Plus size={16} /> {savingBusy ? "Saving..." : "Add"}
               </button>
               <IconButton label="Task options" onClick={() => openNewTask()}><Settings2 size={17} /></IconButton>
             </form>
           </div>
 
-          {view !== "timer" && (
+          {isCalendarView && (
             <section className="stats-grid">
               <div className="stat-card stat-highlight">
                 <div className="stat-top"><span>Today</span><span className="stat-icon"><Sparkles size={17} /></span></div>
@@ -2024,9 +2586,45 @@ export default function App() {
             </section>
           )}
 
-          {view === "timer" ? (
-            <StudyTimer tasks={tasks} user={authUser} onStartTask={() => setModal({ date: today })} onError={reportError} />
-          ) : (
+          {view === "timer" && (
+            <StudyTimer
+              tasks={tasks}
+              user={authUser}
+              sessions={sessions}
+              setSessions={setSessions}
+              onStartTask={() => setModal({ date: today })}
+              onError={reportError}
+            />
+          )}
+
+          {view === "dashboard" && (
+            <StudyDashboardView
+              tasks={tasks}
+              sessions={sessions}
+              subjects={subjects}
+              dailyTargetMin={dailyTargetMin}
+            />
+          )}
+
+          {view === "subjects" && (
+            <SubjectPlannerView
+              subjects={subjects}
+              setSubjects={setSubjects}
+              onNotify={notify}
+            />
+          )}
+
+          {view === "exams" && (
+            <ExamPrepView
+              exams={exams}
+              setExams={setExams}
+              mocks={mocks}
+              setMocks={setMocks}
+              onNotify={notify}
+            />
+          )}
+
+          {isCalendarView && (
             <section className="planner-layout">
               <div className="calendar-card">
                 <div className="calendar-toolbar">
@@ -2038,10 +2636,10 @@ export default function App() {
                         : monthLabel(visibleMonth)}
                   </h2>
                   <div className="calendar-actions">
-                    <button className="today-button" onClick={() => { chooseDate(today); setView("month"); }}>Today</button>
+                    <button type="button" className="today-button" onClick={() => { chooseDate(today); setView("month"); }}>Today</button>
                     <div className="view-switch">
                       {["month", "week", "day"].map((v) => (
-                        <button key={v} onClick={() => setView(v)} className={view === v ? "view-selected" : ""}>{v[0].toUpperCase() + v.slice(1)}</button>
+                        <button type="button" key={v} onClick={() => setView(v)} className={view === v ? "view-selected" : ""}>{v[0].toUpperCase() + v.slice(1)}</button>
                       ))}
                     </div>
                     <div className="month-arrows">
@@ -2133,10 +2731,10 @@ export default function App() {
                                 }
                               }}
                             >
-                              <button className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button>
+                              <button type="button" className="week-day-head" onClick={() => chooseDate(date)}><span>{shortDay(date)}</span><b>{date.getDate()}</b></button>
                               <div className="week-events">
                                 {dayTasks.map((t) => <TaskPill key={t.id} task={t} onClick={editTask} onToggle={toggleTask} />)}
-                                <button className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }} aria-label="Add task"><Plus size={15} /></button>
+                                <button type="button" className="week-add" onClick={() => { chooseDate(date); openNewTask(date); }} aria-label="Add task"><Plus size={15} /></button>
                               </div>
                             </div>
                           );
@@ -2152,11 +2750,11 @@ export default function App() {
                             <div className={"day-event-bar tone-" + (COLORS[t.category] || "violet")}>
                               <div className="day-event-copy">
                                 <strong className={t.completed ? "strike" : ""}>{t.title}</strong>
-                                <span>{t.category} · {t.priority}</span>
+                                <span>{t.category} · {t.priority} · {t.estMinutes || 45}m</span>
                               </div>
                               <div className="day-event-actions">
-                                <button onClick={() => toggleTask(t)} aria-label="Toggle">{t.completed ? <CheckCircle2 size={18} /> : <span className="empty-check" />}</button>
-                                <button onClick={() => editTask(t)} aria-label="Edit"><Pencil size={16} /></button>
+                                <button type="button" onClick={() => toggleTask(t)} aria-label="Toggle">{t.completed ? <CheckCircle2 size={18} /> : <span className="empty-check" />}</button>
+                                <button type="button" onClick={() => editTask(t)} aria-label="Edit"><Pencil size={16} /></button>
                               </div>
                             </div>
                           </div>
@@ -2168,14 +2766,24 @@ export default function App() {
 
                 <div className="calendar-footer">
                   <span><span className="footer-dot" /> {tasks.filter((t) => t.date === dateKey(selectedDate)).length} tasks scheduled</span>
-                  <button onClick={() => setView("day")}>Day view <ArrowRight size={15} /></button>
+                  <button type="button" onClick={() => setView("day")}>Day view <ArrowRight size={15} /></button>
                 </div>
               </div>
 
               <aside className="agenda-card">
                 <div className="agenda-heading">
                   <h2>Focus</h2>
-                  <button className="more-button" onClick={() => setView("day")} aria-label="Day view"><MoreHorizontal size={19} /></button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      className="today-button"
+                      style={{ height: 26, padding: "0 8px", fontSize: "0.72rem" }}
+                      onClick={() => setSortByPriority((v) => !v)}
+                    >
+                      {sortByPriority ? "Priority ✓" : "By Priority"}
+                    </button>
+                    <button type="button" className="more-button" onClick={() => setView("day")} aria-label="Day view"><MoreHorizontal size={19} /></button>
+                  </div>
                 </div>
 
                 <div className="agenda-date">
@@ -2197,33 +2805,42 @@ export default function App() {
                 </div>
 
                 <div className="agenda-list">
-                  {visibleTasks.length ? visibleTasks.map((t) => (
-                    <div className={"agenda-task " + (t.completed ? "agenda-task-done" : "")} key={t.id}>
-                      <button className="task-check" onClick={() => toggleTask(t)} aria-label={t.completed ? "Incomplete" : "Complete"}>{t.completed && <Check size={13} />}</button>
-                      <button className="agenda-task-main" onClick={() => editTask(t)}>
-                        <strong>{t.title}</strong>
-                        <span><Clock3 size={12} /> {t.startTime || "Anytime"}{t.endTime ? " – " + t.endTime : ""}</span>
-                      </button>
-                      <span className={"priority-mark priority-" + t.priority.toLowerCase()} title={t.priority}><Flag size={13} /></span>
-                    </div>
-                  )) : (
+                  {visibleTasks.length ? visibleTasks.map((t) => {
+                    const isOverdue = !t.completed && t.date < todayStr;
+                    const subDone = (t.subtasks || []).filter((s) => s.done).length;
+                    const subTotal = (t.subtasks || []).length;
+                    return (
+                      <div className={"agenda-task " + (t.completed ? "agenda-task-done " : "") + (isOverdue ? "is-overdue" : "")} key={t.id}>
+                        <button type="button" className="task-check" onClick={() => toggleTask(t)} aria-label={t.completed ? "Incomplete" : "Complete"}>{t.completed && <Check size={13} />}</button>
+                        <button type="button" className="agenda-task-main" onClick={() => editTask(t)}>
+                          <strong>{t.title}</strong>
+                          <span>
+                            <Clock3 size={12} /> {t.startTime || "Anytime"}{t.endTime ? " – " + t.endTime : ""}
+                            {subTotal > 0 ? ` · ${subDone}/${subTotal} steps` : ""}
+                            {isOverdue && <span className="overdue-tag">Overdue</span>}
+                          </span>
+                        </button>
+                        <span className={"priority-mark priority-" + String(t.priority || "medium").toLowerCase()} title={t.priority}><Flag size={13} /></span>
+                      </div>
+                    );
+                  }) : (
                     <div className="agenda-empty">
                       <div className="empty-illustration"><CalendarDays size={21} /></div>
                       <strong>No tasks</strong>
-                      <button onClick={() => openNewTask(selectedDate)}><Plus size={15} /> Add</button>
+                      <button type="button" onClick={() => openNewTask(selectedDate)}><Plus size={15} /> Add</button>
                     </div>
                   )}
                 </div>
 
-                <button className="agenda-add" onClick={() => openNewTask(selectedDate)}><Plus size={16} /> Add task</button>
+                <button type="button" className="agenda-add" onClick={() => openNewTask(selectedDate)}><Plus size={16} /> Add task</button>
 
                 <div className="upcoming-block">
                   <div className="upcoming-title">
                     <span>UPCOMING</span>
-                    <button onClick={() => { setSelectedDate(today); setView("week"); }}>Week <ArrowRight size={13} /></button>
+                    <button type="button" onClick={() => { setSelectedDate(today); setView("week"); }}>Week <ArrowRight size={13} /></button>
                   </div>
                   {upcoming.length ? upcoming.slice(0, 3).map((t) => (
-                    <button key={t.id} className="upcoming-item" onClick={() => { chooseDate(fromKey(t.date)); editTask(t); }}>
+                    <button key={t.id} type="button" className="upcoming-item" onClick={() => { chooseDate(fromKey(t.date)); editTask(t); }}>
                       <span className={"upcoming-marker " + COLORS[t.category]} />
                       <span className="upcoming-copy">
                         <strong>{t.title}</strong>
@@ -2254,6 +2871,8 @@ export default function App() {
           onClose={() => setModal(null)}
           onSave={saveTask}
           onRequestDelete={(task) => setPendingDeleteTask(task)}
+          onDuplicate={duplicateTask}
+          busy={savingBusy}
         />
       )}
 
@@ -2262,6 +2881,7 @@ export default function App() {
           task={pendingDeleteTask}
           onCancel={() => setPendingDeleteTask(null)}
           onConfirm={confirmDeleteTask}
+          busy={savingBusy}
         />
       )}
 
@@ -2292,6 +2912,8 @@ export default function App() {
           setTheme={setTheme}
           notifications={notifications}
           setNotifications={setNotifications}
+          dailyTargetMin={dailyTargetMin}
+          setDailyTargetMin={setDailyTargetMin}
         />
       )}
 
