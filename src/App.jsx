@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight, Award, BookOpen, CalendarDays, Check, CheckCircle2,
   ChevronLeft, ChevronRight, Clock3, Cloud, CloudOff, Command, Copy,
-  Flame, Flag, GraduationCap, LayoutDashboard, ListTodo, LogIn,
+  Flame, Flag, GraduationCap, LayoutDashboard, LogIn,
   LogOut, Timer, Play, Pause, RotateCcw, Menu, MoreHorizontal, Moon,
   PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Settings2,
   ShieldCheck, Sparkles, Sun, Trash2, X, Zap, Undo2, AlertCircle,
@@ -93,45 +93,54 @@ const GLOBAL_STYLES = `
     text-align: left !important;
   }
 
+  /* Sanatani Palette — Sacred Saffron (Bhagwa), Haldi Gold & Sandalwood Cream */
   :root {
-    --bg: #f1f5f9;
+    --bg: #fffaf2;
     --surface: #ffffff;
-    --surface-subtle: #f1f5f9;
-    --surface-hover: #e2e8f0;
-    --text: #0f172a;
-    --text-muted: #475569;
-    --line: #dbe2ec;
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --accent-soft: rgba(79, 70, 229, 0.12);
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-    --shadow-md: 0 10px 24px -6px rgba(15, 23, 42, 0.1);
-    --shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.2);
+    --surface-subtle: #fdf2e3;
+    --surface-hover: #fae4c7;
+    --text: #2a1810;
+    --text-muted: #785a46;
+    --line: #eed9be;
+    --accent: #ea580c;
+    --accent-hover: #c2410c;
+    --accent-soft: rgba(234, 88, 12, 0.14);
+    --gold: #d97706;
+    --gold-soft: rgba(217, 119, 6, 0.16);
+    --tulsi: #15803d;
+    --tulsi-soft: rgba(21, 128, 61, 0.14);
+    --shadow-sm: 0 2px 6px rgba(120, 53, 15, 0.06);
+    --shadow-md: 0 12px 26px -6px rgba(120, 53, 15, 0.12);
+    --shadow-lg: 0 24px 48px -12px rgba(120, 53, 15, 0.2);
     --radius-lg: 16px;
     --radius-md: 12px;
     --radius-sm: 8px;
   }
 
   .theme-dark {
-    --bg: #0b1120;
-    --surface: #111827;
-    --surface-subtle: #1e293b;
-    --surface-hover: #293548;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --line: #273449;
-    --accent: #818cf8;
-    --accent-hover: #6366f1;
-    --accent-soft: rgba(129, 140, 248, 0.18);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 10px 24px -6px rgba(0, 0, 0, 0.55);
-    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.75);
+    --bg: #140d09;
+    --surface: #1e140e;
+    --surface-subtle: #2b1d14;
+    --surface-hover: #38261a;
+    --text: #fef3e2;
+    --text-muted: #c2a58c;
+    --line: #3d2a1d;
+    --accent: #f97316;
+    --accent-hover: #ea580c;
+    --accent-soft: rgba(249, 115, 22, 0.2);
+    --gold: #f59e0b;
+    --gold-soft: rgba(245, 158, 11, 0.2);
+    --tulsi: #22c55e;
+    --tulsi-soft: rgba(34, 197, 94, 0.18);
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 12px 26px -6px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.8);
   }
 
   *, *::before, *::after { box-sizing: border-box; }
 
   html, body {
-    margin: 0; padding: 0; width: 100%; overflow-x: hidden;
+    margin: 0 !important; padding: 0 !important; width: 100% !important; overflow-x: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
   }
@@ -140,17 +149,18 @@ const GLOBAL_STYLES = `
   .marketing-shell h1, .marketing-shell h2, .marketing-shell h3, .marketing-shell .brand {
     font-family: 'Plus Jakarta Sans', sans-serif;
     letter-spacing: -0.025em;
-    color: var(--text);
+    color: var(--text) !important;
   }
 
-  .tone-violet { --tone: #8b5cf6; --tone-bg: rgba(139, 92, 246, 0.15); }
-  .tone-blue   { --tone: #0ea5e9; --tone-bg: rgba(14, 165, 233, 0.15); }
-  .tone-amber  { --tone: #f59e0b; --tone-bg: rgba(245, 158, 11, 0.18); }
-  .tone-green  { --tone: #10b981; --tone-bg: rgba(16, 185, 129, 0.16); }
-  .violet { background: #8b5cf6; }
-  .blue   { background: #0ea5e9; }
-  .amber  { background: #f59e0b; }
-  .green  { background: #10b981; }
+  /* Category Tones */
+  .tone-violet { --tone: #ea580c; --tone-bg: rgba(234, 88, 12, 0.15); }
+  .tone-blue   { --tone: #d97706; --tone-bg: rgba(217, 119, 6, 0.16); }
+  .tone-amber  { --tone: #b91c1c; --tone-bg: rgba(185, 28, 28, 0.14); }
+  .tone-green  { --tone: #15803d; --tone-bg: rgba(21, 128, 61, 0.15); }
+  .violet { background: #ea580c; }
+  .blue   { background: #d97706; }
+  .amber  { background: #b91c1c; }
+  .green  { background: #15803d; }
 
   .icon-button {
     width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--radius-sm);
@@ -158,25 +168,26 @@ const GLOBAL_STYLES = `
     color: var(--text-muted); display: inline-grid; place-items: center;
     cursor: pointer; transition: all 0.15s ease; padding: 0;
   }
-  .icon-button:hover { color: var(--text); background: var(--surface-subtle); border-color: var(--accent); }
+  .icon-button:hover { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
   .btn-primary {
     height: 38px; padding: 0 16px; flex-shrink: 0; border-radius: var(--radius-sm);
-    border: none; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff;
-    font-weight: 600; font-size: 0.88rem; display: inline-flex;
+    border: none;
+    background: linear-gradient(135deg, #f97316, #d97706);
+    color: #fff; font-weight: 600; font-size: 0.88rem; display: inline-flex;
     align-items: center; justify-content: center; gap: 6px;
     cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
+    box-shadow: 0 6px 16px -4px rgba(234, 88, 12, 0.45);
   }
   .btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
   .btn-danger {
     height: 38px; padding: 0 16px; border-radius: var(--radius-sm);
-    border: none; background: #ef4444; color: #fff; font-weight: 600;
+    border: none; background: #dc2626; color: #fff; font-weight: 600;
     font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   }
-  .btn-danger:hover { background: #dc2626; }
+  .btn-danger:hover { background: #b91c1c; }
 
   .btn-quiet {
     height: 38px; padding: 0 14px; border-radius: var(--radius-sm);
@@ -197,8 +208,8 @@ const GLOBAL_STYLES = `
 
   .error-banner {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35);
-    color: #ef4444; padding: 10px 14px; border-radius: var(--radius-sm);
+    background: rgba(220, 38, 38, 0.12); border: 1px solid rgba(220, 38, 38, 0.35);
+    color: #dc2626; padding: 10px 14px; border-radius: var(--radius-sm);
     font-size: 0.84rem; font-weight: 600; margin-bottom: 16px;
   }
   .error-banner button { border: none; background: transparent; color: inherit; cursor: pointer; display: grid; place-items: center; }
@@ -210,58 +221,47 @@ const GLOBAL_STYLES = `
   }
   @keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
-  /* App Shell */
+  /* App Shell — Zero Gap */
   .app-shell {
-    display: flex;
+    display: flex !important;
     min-height: 100vh;
-    width: 100%;
+    width: 100% !important;
     background: var(--bg);
     color: var(--text);
   }
 
   /* Collapsible Sidebar */
   .sidebar {
-    width: 248px;
-    flex-shrink: 0;
+    width: 248px !important;
+    flex-shrink: 0 !important;
     background: var(--surface);
     border-right: 1px solid var(--line);
     padding: 18px 14px;
     display: flex;
     flex-direction: column;
     z-index: 40;
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    position: sticky !important;
+    top: 0 !important;
+    height: 100vh !important;
     overflow-y: auto;
-    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), padding 0.22s ease, transform 0.22s ease;
+    transition: width 0.22s ease, padding 0.22s ease, transform 0.22s ease;
   }
   .sidebar.collapsed {
-    width: 72px;
-    padding: 18px 10px;
+    width: 0 !important;
+    padding: 0 !important;
+    border-right: none !important;
+    overflow: hidden !important;
   }
-  .sidebar.collapsed .brand-text,
-  .sidebar.collapsed .nav-label,
-  .sidebar.collapsed .nav-count,
-  .sidebar.collapsed .category-heading span,
-  .sidebar.collapsed .category-nav-label,
-  .sidebar.collapsed .category-total,
-  .sidebar.collapsed .profile-copy { display: none; }
-  .sidebar.collapsed .nav-item,
-  .sidebar.collapsed .category-nav-item { justify-content: center; padding: 10px; }
-  .sidebar.collapsed .brand-row { justify-content: center; padding: 2px 0 18px; }
-  .sidebar.collapsed .profile-row { justify-content: center; padding: 4px 0; }
-  .sidebar.collapsed .profile-action { display: none; }
 
-  .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 18px; gap: 6px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 800; color: var(--text); }
+  .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 18px; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 800; }
   .brand-icon {
     width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
-    background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+    background: linear-gradient(135deg, #ea580c, #f59e0b);
     color: #fff; display: grid; place-items: center;
-    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
   }
   .brand-period { color: var(--accent); }
-  .sidebar-close { display: none; }
 
   .main-nav { display: flex; flex-direction: column; gap: 4px; }
   .nav-item {
@@ -293,7 +293,7 @@ const GLOBAL_STYLES = `
     color: var(--text-muted); font-size: 0.86rem; font-weight: 500; cursor: pointer;
   }
   .category-nav-item:hover { background: var(--surface-subtle); color: var(--text); }
-  .category-nav-selected { background: var(--surface-subtle); color: var(--text); font-weight: 600; }
+  .category-nav-selected { background: var(--gold-soft); color: var(--text); font-weight: 600; }
   .category-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .category-total { margin-left: auto; font-size: 0.74rem; color: var(--text-muted); }
 
@@ -312,7 +312,15 @@ const GLOBAL_STYLES = `
   .profile-action:hover { background: var(--surface-subtle); color: var(--text); }
 
   /* Main Area & Topbar */
-  .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; }
+  .main-area {
+    flex: 1 !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+  }
   .topbar {
     height: 60px; padding: 0 24px; background: var(--surface);
     border-bottom: 1px solid var(--line); display: flex;
@@ -339,7 +347,7 @@ const GLOBAL_STYLES = `
     border-radius: 99px; background: var(--surface-subtle); color: var(--text-muted);
     white-space: nowrap;
   }
-  .sync-status.synced { color: #10b981; background: rgba(16, 185, 129, 0.14); }
+  .sync-status.synced { color: var(--tulsi); background: var(--tulsi-soft); }
   .top-signin {
     height: 34px; padding: 0 12px; border-radius: 8px;
     border: 1px solid var(--line); background: var(--surface);
@@ -354,7 +362,7 @@ const GLOBAL_STYLES = `
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
   }
-  .welcome-copy h1 { font-size: 1.6rem; margin: 0 0 3px; line-height: 1.2; color: var(--text); }
+  .welcome-copy h1 { font-size: 1.6rem; margin: 0 0 3px; line-height: 1.2; }
   .date-overline { font-size: 0.84rem; color: var(--text-muted); }
   .quick-add-form {
     display: flex; align-items: center; gap: 8px;
@@ -368,26 +376,26 @@ const GLOBAL_STYLES = `
     display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
   }
   .stat-highlight {
-    background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+    background: linear-gradient(135deg, #ea580c 0%, #f59e0b 100%);
     color: #fff; border: none;
-    box-shadow: 0 10px 24px -8px rgba(79, 70, 229, 0.45);
+    box-shadow: 0 12px 26px -8px rgba(234, 88, 12, 0.45);
   }
   .stat-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 600; opacity: 0.92; margin-bottom: 10px; }
-  .stat-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,0.2); flex-shrink: 0; }
-  .pale-blue { background: rgba(14, 165, 233, 0.14); color: #0ea5e9; }
-  .pale-green { background: rgba(16, 185, 129, 0.14); color: #10b981; }
-  .pale-amber { background: rgba(245, 158, 11, 0.14); color: #f59e0b; }
+  .stat-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,0.22); flex-shrink: 0; }
+  .pale-blue { background: var(--gold-soft); color: var(--gold); }
+  .pale-green { background: var(--tulsi-soft); color: var(--tulsi); }
+  .pale-amber { background: var(--accent-soft); color: var(--accent); }
   .stat-number { font-size: 1.75rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.1; color: var(--text); }
   .stat-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .stat-main strong { font-size: 1.9rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1; color: #fff; }
   .stat-main strong small { font-size: 1rem; font-weight: 600; }
   .progress-ring {
     width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
-    background: conic-gradient(#fff var(--progress), rgba(255,255,255,0.24) 0deg);
+    background: conic-gradient(#fff var(--progress), rgba(255,255,255,0.26) 0deg);
     display: grid; place-items: center;
   }
   .progress-ring div {
-    width: 36px; height: 36px; border-radius: 50%; background: #3b68e8;
+    width: 36px; height: 36px; border-radius: 50%; background: #c2410c;
     display: flex; align-items: center; justify-content: center;
     font-size: 0.7rem; font-weight: 700; color: #fff;
   }
@@ -400,7 +408,7 @@ const GLOBAL_STYLES = `
     min-width: 0;
   }
   .calendar-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .calendar-toolbar h2 { margin: 0; font-size: 1.18rem; color: var(--text); }
+  .calendar-toolbar h2 { margin: 0; font-size: 1.18rem; }
   .calendar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .today-button {
     height: 32px; padding: 0 12px; border-radius: var(--radius-sm);
@@ -421,9 +429,9 @@ const GLOBAL_STYLES = `
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
   .weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 0.74rem; font-weight: 700; color: var(--text-muted); padding-bottom: 8px; }
-  .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
   .month-cell {
-    min-height: 82px; min-width: 0; padding: 7px; border-radius: var(--radius-md);
+    min-height: 78px; min-width: 0; padding: 7px; border-radius: var(--radius-md);
     border: 1px solid var(--line); background: var(--surface);
     color: var(--text); display: flex; flex-direction: column; align-items: stretch;
     text-align: left; cursor: pointer; transition: all 0.14s ease; overflow: hidden;
@@ -435,7 +443,7 @@ const GLOBAL_STYLES = `
     background: var(--accent); color: #fff; width: 22px; height: 22px;
     border-radius: 50%; display: inline-grid; place-items: center;
   }
-  .drop-target { background: var(--accent-soft) !important; border-style: dashed; }
+  .drop-target { background: var(--accent-soft) !important; border-style: dashed; border-color: var(--accent); }
   .cell-date { font-size: 0.78rem; font-weight: 700; margin-bottom: 5px; line-height: 1; }
   .cell-events { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .more-events { font-size: 0.68rem; font-weight: 600; color: var(--text-muted); padding-left: 4px; }
@@ -488,35 +496,35 @@ const GLOBAL_STYLES = `
 
   /* Agenda Sidebar */
   .agenda-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .agenda-heading h2 { margin: 0; font-size: 1.1rem; color: var(--text); }
+  .agenda-heading h2 { margin: 0; font-size: 1.1rem; }
   .more-button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
   .agenda-date { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface-subtle); border-radius: var(--radius-md); margin-bottom: 14px; }
-  .agenda-date-number { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1.25rem; font-weight: 800; display: grid; place-items: center; }
-  .agenda-date strong { display: block; font-size: 0.95rem; color: var(--text); }
+  .agenda-date-number { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: linear-gradient(135deg, #ea580c, #f59e0b); color: #fff; font-size: 1.25rem; font-weight: 800; display: grid; place-items: center; }
+  .agenda-date strong { display: block; font-size: 0.95rem; }
   .agenda-date span { font-size: 0.8rem; color: var(--text-muted); }
 
   .agenda-progress { margin-bottom: 14px; }
   .agenda-progress div:first-child { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; color: var(--text-muted); }
   .progress-track { height: 6px; border-radius: 99px; background: var(--surface-subtle); overflow: hidden; }
-  .progress-track span { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.25s ease; }
+  .progress-track span { display: block; height: 100%; background: linear-gradient(90deg, #ea580c, #f59e0b); border-radius: 99px; transition: width 0.25s ease; }
 
   .agenda-search { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-subtle); margin-bottom: 12px; color: var(--text-muted); }
   .agenda-search input { border: none; background: transparent; color: var(--text); width: 100%; min-width: 0; outline: none; font-size: 0.85rem; }
 
   .agenda-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   .agenda-task { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); min-width: 0; }
-  .agenda-task.is-overdue { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.05); }
+  .agenda-task.is-overdue { border-color: rgba(220, 38, 38, 0.45); background: rgba(220, 38, 38, 0.05); }
   .task-check { width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--line); background: transparent; color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
-  .agenda-task-done .task-check { background: var(--accent); border-color: var(--accent); }
+  .agenda-task-done .task-check { background: var(--tulsi); border-color: var(--tulsi); }
   .agenda-task-done strong { text-decoration: line-through; opacity: 0.55; }
   .agenda-task-main { flex: 1; border: none; background: transparent; color: var(--text); text-align: left; cursor: pointer; min-width: 0; padding: 0; }
   .agenda-task-main strong { display: block; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agenda-task-main span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-muted); }
-  .overdue-tag { font-size: 0.68rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
+  .overdue-tag { font-size: 0.68rem; font-weight: 700; color: #dc2626; background: rgba(220, 38, 38, 0.12); padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
   .priority-mark { flex-shrink: 0; display: grid; place-items: center; }
-  .priority-high { color: #ef4444; }
-  .priority-medium { color: #f59e0b; }
-  .priority-low { color: #10b981; }
+  .priority-high { color: #dc2626; }
+  .priority-medium { color: #d97706; }
+  .priority-low { color: #15803d; }
 
   .agenda-empty, .day-empty { text-align: center; padding: 20px 12px; color: var(--text-muted); }
   .empty-illustration { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: inline-grid; place-items: center; margin-bottom: 8px; }
@@ -539,9 +547,9 @@ const GLOBAL_STYLES = `
   /* Focus Timer & Modules */
   .study-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
   .study-heading-left { display: flex; align-items: center; gap: 12px; }
-  .study-heading h1 { margin: 0; font-size: 1.5rem; color: var(--text); }
-  .study-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: rgba(239, 68, 68, 0.12); color: #ef4444; }
-  .study-live i { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; }
+  .study-heading h1 { margin: 0; font-size: 1.5rem; }
+  .study-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .study-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
   .study-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; }
   .study-timer-card {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
@@ -550,7 +558,7 @@ const GLOBAL_STYLES = `
   }
   .study-session-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px; }
   .study-session-name { border: none; background: transparent; color: var(--text); font-size: 1.15rem; font-weight: 600; text-align: center; outline: none; border-bottom: 1px dashed var(--line); padding-bottom: 4px; margin-bottom: 24px; max-width: 100%; }
-  .study-clock { font-family: 'Plus Jakarta Sans', monospace; font-size: clamp(2.6rem, 6vw, 4.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; color: var(--text); }
+  .study-clock { font-family: 'Plus Jakarta Sans', monospace; font-size: clamp(2.6rem, 6vw, 4.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; }
   .study-clock-caption { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
   .study-controls { display: flex; gap: 10px; margin-bottom: 24px; }
   .study-start { height: 44px; padding: 0 24px; font-size: 0.95rem; }
@@ -561,18 +569,23 @@ const GLOBAL_STYLES = `
   .duration-fields button { border: none; background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 7px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
 
   .study-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-  .study-insight { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .study-metric { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px; text-align: center; }
-  .study-metric strong { display: block; font-size: 1.05rem; font-weight: 800; color: var(--text); }
-  .study-metric span { font-size: 0.72rem; color: var(--text-muted); }
+  .study-insight { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .study-metric {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 8px !important; text-align: center;
+    display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+    min-width: 0 !important; overflow: hidden !important;
+  }
+  .study-metric strong { display: block; font-size: 1rem; font-weight: 800; white-space: nowrap; }
+  .study-metric span { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; white-space: nowrap; }
   .weekly-report { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
   .weekly-report-score { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-  .weekly-report-score strong { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+  .weekly-report-score strong { font-size: 1.5rem; font-weight: 800; }
   .weekly-report-track { height: 8px; background: var(--surface-subtle); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
-  .weekly-report-track i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .weekly-report-track i { display: block; height: 100%; background: linear-gradient(90deg, #ea580c, #f59e0b); border-radius: 99px; }
   .weekly-report-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
   .weekly-report-categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 0.78rem; }
-  .weekly-report-categories span { display: flex; justify-content: space-between; padding: 6px 10px; background: var(--surface-subtle); border-radius: 8px; color: var(--text); }
+  .weekly-report-categories span { display: flex; justify-content: space-between; padding: 6px 10px; background: var(--surface-subtle); border-radius: 8px; }
   .study-templates div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .study-templates button { padding: 9px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: 0.8rem; cursor: pointer; }
   .study-templates button:hover { border-color: var(--accent); color: var(--accent); }
@@ -587,23 +600,23 @@ const GLOBAL_STYLES = `
     background: var(--surface-subtle); margin-bottom: 10px;
   }
   .item-row-main { min-width: 0; flex: 1; }
-  .item-row-main strong { display: block; font-size: 0.92rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-row-main strong { display: block; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .item-row-main small { color: var(--text-muted); font-size: 0.78rem; }
   .badge-pill {
     font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 99px;
     background: var(--accent-soft); color: var(--accent); white-space: nowrap;
   }
-  .badge-weak { background: rgba(239, 68, 68, 0.14); color: #ef4444; }
-  .badge-good { background: rgba(16, 185, 129, 0.14); color: #10b981; }
+  .badge-weak { background: rgba(220, 38, 38, 0.14); color: #dc2626; }
+  .badge-good { background: var(--tulsi-soft); color: var(--tulsi); }
   .subtask-box { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; background: var(--surface-subtle); margin-top: 6px; }
-  .subtask-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; margin-bottom: 6px; color: var(--text); }
+  .subtask-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; margin-bottom: 6px; }
   .subtask-row:last-child { margin-bottom: 0; }
   .subtask-add-row { display: flex; gap: 6px; margin-top: 8px; }
 
   /* Modals */
   .modal-backdrop {
     position: fixed; inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(20, 13, 9, 0.58);
     backdrop-filter: blur(6px);
     display: grid; place-items: center;
     padding: 16px; z-index: 100; overflow-y: auto;
@@ -617,7 +630,7 @@ const GLOBAL_STYLES = `
   .confirm-modal { max-width: 380px; }
   .confirm-modal p { color: var(--text-muted); font-size: 0.9rem; margin: 8px 0 0; line-height: 1.5; }
   .modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .modal-top h2 { margin: 0; font-size: 1.2rem; color: var(--text); }
+  .modal-top h2 { margin: 0; font-size: 1.2rem; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .category-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
   .category-choice {
@@ -628,8 +641,8 @@ const GLOBAL_STYLES = `
   .category-choice.selected { opacity: 1; background: var(--tone-bg); outline: 2px solid var(--accent); }
   .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
   .actions-spacer { flex: 1; }
-  .delete-button { border: none; background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
-  .form-error { color: #ef4444; font-size: 0.82rem; margin-top: 10px; }
+  .delete-button { border: none; background: rgba(220, 38, 38, 0.12); color: #dc2626; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .form-error { color: #dc2626; font-size: 0.82rem; margin-top: 10px; }
 
   .auth-modal, .onboarding-modal { max-width: 390px; }
   .auth-mark { width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; margin-bottom: 12px; }
@@ -639,8 +652,8 @@ const GLOBAL_STYLES = `
   .auth-switch button { border: none; background: transparent; color: var(--accent); font-weight: 600; cursor: pointer; }
 
   .settings-section { padding: 12px 0; border-top: 1px solid var(--line); }
-  .settings-section h3 { margin: 0 0 6px; font-size: 0.9rem; color: var(--text); }
-  .settings-choice-row, .settings-toggle { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; color: var(--text); }
+  .settings-section h3 { margin: 0 0 6px; font-size: 0.9rem; }
+  .settings-choice-row, .settings-toggle { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; }
   .settings-select { width: 130px; }
   .settings-permission { margin-top: 8px; border: 1px solid var(--line); background: var(--surface-subtle); color: var(--text); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; }
 
@@ -655,7 +668,7 @@ const GLOBAL_STYLES = `
 
   .toast {
     position: fixed; bottom: 24px; right: 24px;
-    background: #0f172a; color: #fff;
+    background: #2a1810; color: #fef3e2;
     padding: 10px 16px; border-radius: 12px;
     font-size: 0.85rem; font-weight: 600;
     display: inline-flex; align-items: center; gap: 10px;
@@ -670,13 +683,13 @@ const GLOBAL_STYLES = `
   .toast-undo:hover { background: rgba(255,255,255,0.25); }
   @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-  /* Marketing Landing Page (Respects Light & Dark Mode) */
+  /* Marketing Landing Page (Sanatani Theme + Full Width Sections) */
   .marketing-shell {
     min-height: 100vh;
     width: 100%;
     background:
-      radial-gradient(circle at 12% 8%, rgba(79, 70, 229, 0.14), transparent 38%),
-      radial-gradient(circle at 88% 16%, rgba(14, 165, 233, 0.13), transparent 36%),
+      radial-gradient(circle at 12% 8%, rgba(234, 88, 12, 0.16), transparent 40%),
+      radial-gradient(circle at 88% 16%, rgba(245, 158, 11, 0.18), transparent 38%),
       var(--bg);
     color: var(--text);
   }
@@ -686,7 +699,7 @@ const GLOBAL_STYLES = `
   }
   .marketing-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.38rem; font-weight: 800; color: var(--text); text-decoration: none; }
   .marketing-brand span { color: var(--accent); }
-  .marketing-brand-icon { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: #fff; display: grid; place-items: center; }
+  .marketing-brand-icon { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #ea580c, #f59e0b); color: #fff; display: grid; place-items: center; }
   .marketing-links { display: flex; gap: 28px; }
   .marketing-links a { text-decoration: none; color: var(--text-muted); font-weight: 500; font-size: 0.92rem; }
   .marketing-links a:hover { color: var(--text); }
@@ -697,12 +710,12 @@ const GLOBAL_STYLES = `
   }
   .marketing-nav-cta {
     height: 38px; padding: 0 16px; border-radius: 10px; border: none;
-    background: var(--accent); color: #fff; font-weight: 600; font-size: 0.86rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, #ea580c, #d97706); color: #fff; font-weight: 600; font-size: 0.86rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
   }
   .marketing-menu-toggle { display: none; border: none; background: transparent; color: var(--text); cursor: pointer; }
 
   .marketing-hero {
-    max-width: 1160px; margin: 0 auto; padding: 52px 24px 72px;
+    max-width: 1160px; margin: 0 auto; padding: 52px 24px 64px;
     display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center;
   }
   .hero-badge {
@@ -711,15 +724,15 @@ const GLOBAL_STYLES = `
     background: var(--accent-soft); color: var(--accent);
     font-size: 0.8rem; font-weight: 700; margin-bottom: 18px;
   }
-  .hero-copy h1 { font-size: clamp(2.5rem, 5vw, 3.6rem); line-height: 1.06; letter-spacing: -0.04em; margin: 0 0 18px; color: var(--text); }
-  .hero-copy h1 span { background: linear-gradient(135deg, #4f46e5, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-copy h1 { font-size: clamp(2.5rem, 5vw, 3.6rem); line-height: 1.06; letter-spacing: -0.04em; margin: 0 0 18px; }
+  .hero-copy h1 span { background: linear-gradient(135deg, #ea580c, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .hero-description { font-size: 1.1rem; line-height: 1.6; color: var(--text-muted); margin: 0 0 28px; max-width: 460px; }
   .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
   .hero-primary {
     height: 48px; padding: 0 24px; border-radius: 12px; border: none;
-    background: linear-gradient(135deg, #4f46e5, #0284c7); color: #fff;
+    background: linear-gradient(135deg, #ea580c, #d97706); color: #fff;
     font-weight: 600; font-size: 0.98rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.45);
+    box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.45);
   }
   .hero-secondary {
     height: 48px; padding: 0 22px; border-radius: 12px; border: 1px solid var(--line);
@@ -737,58 +750,57 @@ const GLOBAL_STYLES = `
   .preview-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
   .preview-dots { display: flex; gap: 6px; }
   .preview-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: inline-block; }
-  .preview-user { width: 22px; height: 22px; border-radius: 6px; background: #4f46e5; color: #fff; display: grid; place-items: center; }
+  .preview-user { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; }
   .preview-content { display: grid; grid-template-columns: 140px 1fr; min-height: 270px; }
   .preview-sidebar { border-right: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
   .preview-logo { font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
   .preview-nav-active { background: var(--accent-soft); color: var(--accent); font-weight: 600; padding: 7px 10px; border-radius: 8px; display: flex; align-items: center; gap: 7px; }
   .preview-sidebar > div:not(.preview-logo):not(.preview-nav-active) { padding: 7px 10px; display: flex; align-items: center; gap: 7px; }
   .preview-main { padding: 18px; min-width: 0; }
-  .preview-month { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 0.9rem; color: var(--text); }
+  .preview-month { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 0.9rem; }
   .preview-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; margin-bottom: 16px; }
   .preview-days div { padding: 8px 2px; border-radius: 10px; background: var(--surface-subtle); }
   .preview-days small { display: block; font-size: 0.68rem; color: var(--text-muted); }
-  .preview-days b { display: inline-grid; place-items: center; width: 24px; height: 24px; font-size: 0.82rem; margin-top: 4px; border-radius: 50%; color: var(--text); }
-  .preview-today { background: #4f46e5; color: #fff !important; }
+  .preview-days b { display: inline-grid; place-items: center; width: 24px; height: 24px; font-size: 0.82rem; margin-top: 4px; border-radius: 50%; }
+  .preview-today { background: var(--accent); color: #fff !important; }
   .preview-events { display: flex; flex-direction: column; gap: 8px; }
   .preview-event { padding: 9px 12px; border-radius: 9px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .event-purple { background: rgba(139, 92, 246, 0.16); color: #8b5cf6; }
-  .event-blue { background: rgba(14, 165, 233, 0.16); color: #0ea5e9; }
-  .event-orange { background: rgba(245, 158, 11, 0.18); color: #d97706; }
+  .event-purple { background: var(--accent-soft); color: var(--accent); }
+  .event-blue { background: var(--gold-soft); color: var(--gold); }
+  .event-orange { background: var(--tulsi-soft); color: var(--tulsi); }
 
-  .marketing-section, .how-section, .pricing-section { max-width: 1160px; margin: 0 auto; padding: 52px 24px; }
-  .section-intro h2, .how-heading h2, .pricing-section h2 { font-size: 2rem; margin: 0 0 24px; letter-spacing: -0.03em; color: var(--text); }
-  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .feature-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: var(--shadow-sm); }
+  .marketing-section, .how-section, .pricing-section {
+    display: block !important;
+    max-width: 1160px !important;
+    margin: 0 auto !important;
+    padding: 48px 24px !important;
+  }
+  .section-intro h2, .how-heading h2, .pricing-section h2 { font-size: 2rem; margin: 0 0 24px; letter-spacing: -0.03em; }
+  .feature-grid, .how-steps { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 20px !important; }
+  .feature-card, .how-steps article { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: var(--shadow-sm); }
   .feature-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; }
-  .feature-lilac { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
-  .feature-blue { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; }
-  .feature-peach { background: rgba(245, 158, 11, 0.16); color: #d97706; }
-  .feature-card h3 { margin: 0 0 8px; font-size: 1.15rem; color: var(--text); }
-  .feature-card p { margin: 0; color: var(--text-muted); line-height: 1.55; font-size: 0.94rem; }
-
-  .how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .how-steps article { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: var(--shadow-sm); }
+  .feature-lilac { background: var(--accent-soft); color: var(--accent); }
+  .feature-blue { background: var(--gold-soft); color: var(--gold); }
+  .feature-peach { background: var(--tulsi-soft); color: var(--tulsi); }
+  .feature-card h3, .how-steps h3 { margin: 8px 0 8px; font-size: 1.12rem; }
+  .feature-card p, .how-steps p { margin: 0; color: var(--text-muted); line-height: 1.55; font-size: 0.94rem; }
   .how-steps b { font-size: 0.85rem; color: var(--accent); font-family: 'Plus Jakarta Sans', sans-serif; }
-  .how-steps h3 { margin: 8px 0 6px; color: var(--text); }
-  .how-steps p { margin: 0; color: var(--text-muted); font-size: 0.92rem; }
 
-  .pricing-card { max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px; box-shadow: var(--shadow-md); }
-  .pricing-price { font-size: 2.4rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 16px; color: var(--text); }
+  .pricing-card { max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px; box-shadow: var(--shadow-md); }
+  .pricing-price { font-size: 2.4rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 16px; }
   .pricing-card ul { list-style: none; padding: 0; margin: 0 0 22px; display: flex; flex-direction: column; gap: 10px; color: var(--text-muted); font-size: 0.92rem; }
   .pricing-card li { display: flex; align-items: center; gap: 8px; }
-  .pricing-card li svg { color: #10b981; flex-shrink: 0; }
-  .pricing-card button { width: 100%; height: 42px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .pricing-card li svg { color: var(--tulsi); flex-shrink: 0; }
+  .pricing-card button { width: 100%; height: 42px; border-radius: 10px; border: none; background: linear-gradient(135deg, #ea580c, #d97706); color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 
   .marketing-footer { max-width: 1160px; margin: 0 auto; padding: 28px 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.88rem; }
 
   @media (max-width: 1024px) {
     .planner-layout, .study-layout, .marketing-hero, .two-col-grid { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .feature-grid, .how-steps { grid-template-columns: 1fr; }
-    .sidebar { position: fixed; inset: 0 auto 0 0; width: 252px; transform: translateX(-100%); }
+    .feature-grid, .how-steps { grid-template-columns: 1fr !important; }
+    .sidebar { position: fixed !important; inset: 0 auto 0 0 !important; width: 252px !important; transform: translateX(-100%); }
     .sidebar.sidebar-open { transform: translateX(0); }
-    .sidebar-close { display: inline-grid; }
     .menu-toggle { display: inline-grid; }
     .desktop-collapse { display: none; }
     .mobile-scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); border: none; z-index: 35; }
@@ -883,11 +895,11 @@ function CommandPalette({ open, onClose, onNewTask, onSwitchView, onToggleTheme 
 
   const actions = [
     { label: "Create new task", shortcut: "N", icon: <Plus size={16} />, run: () => { onClose(); onNewTask(); } },
-    { label: "Study Dashboard & Analytics", shortcut: "A", icon: <LayoutDashboard size={16} />, run: () => { onClose(); onSwitchView("dashboard"); } },
-    { label: "Go to Month Calendar", shortcut: "1", icon: <CalendarDays size={16} />, run: () => { onClose(); onSwitchView("month"); } },
+    { label: "Open Focus Timer", shortcut: "T", icon: <Timer size={16} />, run: () => { onClose(); onSwitchView("timer"); } },
     { label: "Subject & Topic Planner", shortcut: "S", icon: <BookOpen size={16} />, run: () => { onClose(); onSwitchView("subjects"); } },
     { label: "Exam Preparation Hub", shortcut: "E", icon: <GraduationCap size={16} />, run: () => { onClose(); onSwitchView("exams"); } },
-    { label: "Open Focus Timer", shortcut: "T", icon: <Timer size={16} />, run: () => { onClose(); onSwitchView("timer"); } },
+    { label: "Go to Month Calendar", shortcut: "1", icon: <CalendarDays size={16} />, run: () => { onClose(); onSwitchView("month"); } },
+    { label: "Study Dashboard & Analytics", shortcut: "A", icon: <LayoutDashboard size={16} />, run: () => { onClose(); onSwitchView("dashboard"); } },
     { label: "Toggle Dark / Light Mode", shortcut: "D", icon: <Sparkles size={16} />, run: () => { onClose(); onToggleTheme(); } },
   ].filter((a) => a.label.toLowerCase().includes(query.toLowerCase()));
 
@@ -1593,46 +1605,128 @@ function SubjectPlannerView({ subjects, setSubjects, onNotify }) {
   const [weeklyTargetHours, setWeeklyTargetHours] = useState(6);
   const [topicInputs, setTopicInputs] = useState({});
 
+  const [editingSubId, setEditingSubId] = useState(null);
+  const [subDraft, setSubDraft] = useState({ name: "", weeklyTargetHours: 6 });
+
+  const [editingTopicKey, setEditingTopicKey] = useState(null);
+  const [topicEditDraft, setTopicEditDraft] = useState({ title: "", difficulty: "Medium", plannedMinutes: 60 });
+
+  function persist(next) {
+    setSubjects(next);
+    safeWriteJson(STORAGE_KEYS.subjects, next);
+  }
+
   function addSubject(e) {
     e.preventDefault();
     if (!name.trim()) return;
-    const next = [...subjects, {
-      id: makeId(),
-      name: name.trim(),
-      weeklyTargetHours: Math.max(1, Math.min(80, Number(weeklyTargetHours) || 6)),
-      topics: []
-    }];
-    setSubjects(next);
-    safeWriteJson(STORAGE_KEYS.subjects, next);
+    persist([
+      ...subjects,
+      {
+        id: makeId(),
+        name: name.trim(),
+        weeklyTargetHours: Math.max(1, Math.min(80, Number(weeklyTargetHours) || 6)),
+        topics: []
+      }
+    ]);
     setName("");
     onNotify("Subject added");
+  }
+
+  function startEditSubject(sub) {
+    setEditingSubId(sub.id);
+    setSubDraft({ name: sub.name, weeklyTargetHours: sub.weeklyTargetHours || 6 });
+  }
+
+  function saveEditSubject(subId) {
+    if (!subDraft.name.trim()) return;
+    persist(
+      subjects.map((s) =>
+        s.id === subId
+          ? { ...s, name: subDraft.name.trim(), weeklyTargetHours: Math.max(1, Math.min(80, Number(subDraft.weeklyTargetHours) || 6)) }
+          : s
+      )
+    );
+    setEditingSubId(null);
+    onNotify("Subject updated");
+  }
+
+  function deleteSubject(subId) {
+    persist(subjects.filter((s) => s.id !== subId));
+    onNotify("Subject deleted");
   }
 
   function addTopic(subId) {
     const draft = topicInputs[subId] || { title: "", difficulty: "Medium", plannedMinutes: 60 };
     if (!draft.title?.trim()) return;
-    const next = subjects.map((s) => s.id === subId ? {
-      ...s,
-      topics: [...(s.topics || []), {
-        id: makeId(),
-        title: draft.title.trim(),
-        difficulty: draft.difficulty || "Medium",
-        plannedMinutes: Number(draft.plannedMinutes) || 60,
-        completed: false
-      }]
-    } : s);
-    setSubjects(next);
-    safeWriteJson(STORAGE_KEYS.subjects, next);
+    persist(
+      subjects.map((s) =>
+        s.id === subId
+          ? {
+              ...s,
+              topics: [
+                ...(s.topics || []),
+                {
+                  id: makeId(),
+                  title: draft.title.trim(),
+                  difficulty: draft.difficulty || "Medium",
+                  plannedMinutes: Math.max(5, Math.min(600, Number(draft.plannedMinutes) || 60)),
+                  completed: false
+                }
+              ]
+            }
+          : s
+      )
+    );
     setTopicInputs((prev) => ({ ...prev, [subId]: { title: "", difficulty: "Medium", plannedMinutes: 60 } }));
   }
 
+  function startEditTopic(subId, tp) {
+    setEditingTopicKey(`${subId}:${tp.id}`);
+    setTopicEditDraft({ title: tp.title, difficulty: tp.difficulty || "Medium", plannedMinutes: tp.plannedMinutes || 60 });
+  }
+
+  function saveEditTopic(subId, topicId) {
+    if (!topicEditDraft.title.trim()) return;
+    persist(
+      subjects.map((s) =>
+        s.id === subId
+          ? {
+              ...s,
+              topics: (s.topics || []).map((tp) =>
+                tp.id === topicId
+                  ? {
+                      ...tp,
+                      title: topicEditDraft.title.trim(),
+                      difficulty: topicEditDraft.difficulty,
+                      plannedMinutes: Math.max(5, Math.min(600, Number(topicEditDraft.plannedMinutes) || 60))
+                    }
+                  : tp
+              )
+            }
+          : s
+      )
+    );
+    setEditingTopicKey(null);
+    onNotify("Topic updated");
+  }
+
+  function deleteTopic(subId, topicId) {
+    persist(
+      subjects.map((s) =>
+        s.id === subId ? { ...s, topics: (s.topics || []).filter((tp) => tp.id !== topicId) } : s
+      )
+    );
+    onNotify("Topic removed");
+  }
+
   function toggleTopic(subId, topicId) {
-    const next = subjects.map((s) => s.id === subId ? {
-      ...s,
-      topics: (s.topics || []).map((tp) => tp.id === topicId ? { ...tp, completed: !tp.completed } : tp)
-    } : s);
-    setSubjects(next);
-    safeWriteJson(STORAGE_KEYS.subjects, next);
+    persist(
+      subjects.map((s) =>
+        s.id === subId
+          ? { ...s, topics: (s.topics || []).map((tp) => (tp.id === topicId ? { ...tp, completed: !tp.completed } : tp)) }
+          : s
+      )
+    );
   }
 
   return (
@@ -1643,7 +1737,7 @@ function SubjectPlannerView({ subjects, setSubjects, onNotify }) {
 
       <form onSubmit={addSubject} className="module-card" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
         <input className="field-input" style={{ flex: 1, minWidth: 200 }} placeholder="Subject or course name (e.g. Structural Analysis)" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="field-input" style={{ width: 150 }} type="number" min="1" max="80" value={weeklyTargetHours} onChange={(e) => setWeeklyTargetHours(e.target.value)} aria-label="Weekly target hours" />
+        <input className="field-input" style={{ width: 120 }} type="number" min="1" max="80" value={weeklyTargetHours} onChange={(e) => setWeeklyTargetHours(e.target.value)} aria-label="Weekly target hours" title="Weekly target hours" />
         <button type="submit" className="btn-primary"><Plus size={16} /> Add Subject</button>
       </form>
 
@@ -1653,40 +1747,90 @@ function SubjectPlannerView({ subjects, setSubjects, onNotify }) {
           const topics = sub.topics || [];
           const done = topics.filter((t) => t.completed).length;
           const pct = topics.length ? Math.round((done / topics.length) * 100) : 0;
+          const isEditingSub = editingSubId === sub.id;
+
           return (
             <div key={sub.id} className="module-card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <h3 style={{ margin: 0 }}>{sub.name}</h3>
-                <span className="badge-pill">{pct}% ({done}/{topics.length})</span>
-              </div>
+              {isEditingSub ? (
+                <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <input className="field-input" style={{ flex: 1, minWidth: 140 }} value={subDraft.name} onChange={(e) => setSubDraft({ ...subDraft, name: e.target.value })} />
+                  <input className="field-input" style={{ width: 78 }} type="number" min="1" max="80" value={subDraft.weeklyTargetHours} onChange={(e) => setSubDraft({ ...subDraft, weeklyTargetHours: e.target.value })} />
+                  <button type="button" className="btn-primary" style={{ height: 34, padding: "0 10px" }} onClick={() => saveEditSubject(sub.id)}><Check size={14} /></button>
+                  <IconButton label="Cancel" onClick={() => setEditingSubId(null)}><X size={15} /></IconButton>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ margin: 0 }}>{sub.name}</h3>
+                    <small style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>Target: {sub.weeklyTargetHours || 6}h/week</small>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="badge-pill">{pct}% ({done}/{topics.length})</span>
+                    <IconButton label="Edit subject" onClick={() => startEditSubject(sub)}><Pencil size={14} /></IconButton>
+                    <IconButton label="Delete subject" onClick={() => deleteSubject(sub.id)}><Trash2 size={14} /></IconButton>
+                  </div>
+                </div>
+              )}
+
               <div className="progress-track" style={{ marginBottom: 12 }}><span style={{ width: pct + "%" }} /></div>
 
-              {topics.map((tp) => (
-                <div key={tp.id} className="item-row-card" style={{ padding: "8px 12px" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, cursor: "pointer" }}>
-                    <input type="checkbox" checked={Boolean(tp.completed)} onChange={() => toggleTopic(sub.id, tp.id)} />
-                    <span className={tp.completed ? "strike" : ""} style={{ fontSize: "0.86rem", fontWeight: 500 }}>{tp.title}</span>
-                  </label>
-                  <span className={"badge-pill " + (tp.difficulty === "Hard" ? "badge-weak" : "")}>{tp.difficulty} · {tp.plannedMinutes}m</span>
-                </div>
-              ))}
+              {topics.map((tp) => {
+                const isEditingTp = editingTopicKey === `${sub.id}:${tp.id}`;
+                return (
+                  <div key={tp.id} className="item-row-card" style={{ padding: "8px 12px" }}>
+                    {isEditingTp ? (
+                      <div style={{ display: "flex", gap: 6, width: "100%", flexWrap: "wrap", alignItems: "center" }}>
+                        <input className="field-input" style={{ flex: 1, minWidth: 110, padding: "5px 8px", fontSize: "0.84rem" }} value={topicEditDraft.title} onChange={(e) => setTopicEditDraft({ ...topicEditDraft, title: e.target.value })} />
+                        <select className="field-input" style={{ width: 95, padding: "5px 6px", fontSize: "0.82rem" }} value={topicEditDraft.difficulty} onChange={(e) => setTopicEditDraft({ ...topicEditDraft, difficulty: e.target.value })}>
+                          {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
+                        </select>
+                        <input className="field-input" style={{ width: 68, padding: "5px 6px", fontSize: "0.82rem" }} type="number" min="5" max="600" value={topicEditDraft.plannedMinutes} onChange={(e) => setTopicEditDraft({ ...topicEditDraft, plannedMinutes: e.target.value })} />
+                        <button type="button" className="btn-primary" style={{ height: 30, padding: "0 9px" }} onClick={() => saveEditTopic(sub.id, tp.id)}><Check size={13} /></button>
+                        <button type="button" className="btn-quiet" style={{ height: 30, padding: "0 8px" }} onClick={() => setEditingTopicKey(null)}><X size={13} /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, cursor: "pointer", minWidth: 0 }}>
+                          <input type="checkbox" checked={Boolean(tp.completed)} onChange={() => toggleTopic(sub.id, tp.id)} />
+                          <span className={tp.completed ? "strike" : ""} style={{ fontSize: "0.86rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tp.title}</span>
+                        </label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span className={"badge-pill " + (tp.difficulty === "Hard" ? "badge-weak" : "")}>{tp.difficulty} · {tp.plannedMinutes}m</span>
+                          <IconButton label="Edit topic" onClick={() => startEditTopic(sub.id, tp)}><Pencil size={13} /></IconButton>
+                          <IconButton label="Delete topic" onClick={() => deleteTopic(sub.id, tp.id)}><Trash2 size={13} /></IconButton>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
 
               <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                 <input
                   className="field-input"
-                  style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: "0.84rem" }}
+                  style={{ flex: 1, minWidth: 130, padding: "6px 10px", fontSize: "0.84rem" }}
                   placeholder="Add chapter / topic..."
                   value={draft.title}
                   onChange={(e) => setTopicInputs((prev) => ({ ...prev, [sub.id]: { ...draft, title: e.target.value } }))}
                 />
                 <select
                   className="field-input"
-                  style={{ width: 105, padding: "6px 8px", fontSize: "0.84rem" }}
+                  style={{ width: 98, padding: "6px 8px", fontSize: "0.84rem" }}
                   value={draft.difficulty}
                   onChange={(e) => setTopicInputs((prev) => ({ ...prev, [sub.id]: { ...draft, difficulty: e.target.value } }))}
                 >
                   {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
                 </select>
+                <input
+                  className="field-input"
+                  style={{ width: 70, padding: "6px 8px", fontSize: "0.84rem" }}
+                  type="number"
+                  min="5"
+                  max="600"
+                  value={draft.plannedMinutes}
+                  onChange={(e) => setTopicInputs((prev) => ({ ...prev, [sub.id]: { ...draft, plannedMinutes: e.target.value } }))}
+                  title="Minutes"
+                />
                 <button type="button" className="btn-primary" style={{ height: 34, padding: "0 12px" }} onClick={() => addTopic(sub.id)}>
                   <Plus size={14} /> Topic
                 </button>
@@ -1706,30 +1850,80 @@ function ExamPrepView({ exams, setExams, mocks, setMocks, onNotify }) {
   const [mockScore, setMockScore] = useState(75);
   const [weakTopic, setWeakTopic] = useState("");
 
+  const [editingExamId, setEditingExamId] = useState(null);
+  const [examDraft, setExamDraft] = useState({ title: "", date: "" });
+
+  const [editingMockId, setEditingMockId] = useState(null);
+  const [mockDraft, setMockDraft] = useState({ name: "", score: 75, weakTopic: "" });
+
+  function saveExams(next) {
+    setExams(next);
+    safeWriteJson(STORAGE_KEYS.exams, next);
+  }
+
+  function saveMocks(next) {
+    setMocks(next);
+    safeWriteJson(STORAGE_KEYS.mocks, next);
+  }
+
   function addExam(e) {
     e.preventDefault();
     if (!examTitle.trim() || !examDate) return;
-    const next = [...exams, { id: makeId(), title: examTitle.trim(), date: examDate, syllabusPct: 0 }];
-    setExams(next);
-    safeWriteJson(STORAGE_KEYS.exams, next);
+    saveExams([...exams, { id: makeId(), title: examTitle.trim(), date: examDate, syllabusPct: 0 }]);
     setExamTitle("");
     onNotify("Exam added");
+  }
+
+  function saveEditExam(id) {
+    if (!examDraft.title.trim() || !examDraft.date) return;
+    saveExams(exams.map((ex) => (ex.id === id ? { ...ex, title: examDraft.title.trim(), date: examDraft.date } : ex)));
+    setEditingExamId(null);
+    onNotify("Exam updated");
+  }
+
+  function deleteExam(id) {
+    saveExams(exams.filter((ex) => ex.id !== id));
+    onNotify("Exam deleted");
   }
 
   function addMock(e) {
     e.preventDefault();
     if (!mockName.trim()) return;
-    const next = [...mocks, {
-      id: makeId(),
-      name: mockName.trim(),
-      score: Math.max(0, Math.min(100, Number(mockScore) || 0)),
-      weakTopic: weakTopic.trim()
-    }];
-    setMocks(next);
-    safeWriteJson(STORAGE_KEYS.mocks, next);
+    saveMocks([
+      ...mocks,
+      {
+        id: makeId(),
+        name: mockName.trim(),
+        score: Math.max(0, Math.min(100, Number(mockScore) || 0)),
+        weakTopic: weakTopic.trim()
+      }
+    ]);
     setMockName("");
     setWeakTopic("");
     onNotify("Mock test logged");
+  }
+
+  function saveEditMock(id) {
+    if (!mockDraft.name.trim()) return;
+    saveMocks(
+      mocks.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              name: mockDraft.name.trim(),
+              score: Math.max(0, Math.min(100, Number(mockDraft.score) || 0)),
+              weakTopic: mockDraft.weakTopic.trim()
+            }
+          : m
+      )
+    );
+    setEditingMockId(null);
+    onNotify("Mock test updated");
+  }
+
+  function deleteMock(id) {
+    saveMocks(mocks.filter((m) => m.id !== id));
+    onNotify("Mock test deleted");
   }
 
   const nowMs = fromKey(dateKey(getToday())).getTime();
@@ -1751,15 +1945,31 @@ function ExamPrepView({ exams, setExams, mocks, setMocks, onNotify }) {
 
           {exams.map((ex) => {
             const diffDays = Math.ceil((fromKey(ex.date).getTime() - nowMs) / 86400000);
+            const isEditing = editingExamId === ex.id;
             return (
               <div key={ex.id} className="item-row-card">
-                <div className="item-row-main">
-                  <strong>{ex.title}</strong>
-                  <small>Exam date: {ex.date} · Revision due in {Math.max(1, Math.min(7, diffDays))}d</small>
-                </div>
-                <span className={"badge-pill " + (diffDays <= 14 ? "badge-weak" : "badge-good")}>
-                  {diffDays > 0 ? `${diffDays}d left` : diffDays === 0 ? "Today" : "Passed"}
-                </span>
+                {isEditing ? (
+                  <div style={{ display: "flex", gap: 6, width: "100%", flexWrap: "wrap", alignItems: "center" }}>
+                    <input className="field-input" style={{ flex: 1, minWidth: 120 }} value={examDraft.title} onChange={(e) => setExamDraft({ ...examDraft, title: e.target.value })} />
+                    <input className="field-input" style={{ width: 145 }} type="date" value={examDraft.date} onChange={(e) => setExamDraft({ ...examDraft, date: e.target.value })} />
+                    <button type="button" className="btn-primary" style={{ height: 34, padding: "0 10px" }} onClick={() => saveEditExam(ex.id)}><Check size={14} /></button>
+                    <IconButton label="Cancel" onClick={() => setEditingExamId(null)}><X size={14} /></IconButton>
+                  </div>
+                ) : (
+                  <>
+                    <div className="item-row-main">
+                      <strong>{ex.title}</strong>
+                      <small>Exam date: {ex.date} · Revision due in {Math.max(1, Math.min(7, diffDays))}d</small>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className={"badge-pill " + (diffDays <= 14 ? "badge-weak" : "badge-good")}>
+                        {diffDays > 0 ? `${diffDays}d left` : diffDays === 0 ? "Today" : "Passed"}
+                      </span>
+                      <IconButton label="Edit exam" onClick={() => { setEditingExamId(ex.id); setExamDraft({ title: ex.title, date: ex.date }); }}><Pencil size={14} /></IconButton>
+                      <IconButton label="Delete exam" onClick={() => deleteExam(ex.id)}><Trash2 size={14} /></IconButton>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -1774,15 +1984,34 @@ function ExamPrepView({ exams, setExams, mocks, setMocks, onNotify }) {
             <button type="submit" className="btn-primary"><Award size={15} /> Log</button>
           </form>
 
-          {mocks.map((m) => (
-            <div key={m.id} className="item-row-card">
-              <div className="item-row-main">
-                <strong>{m.name}</strong>
-                <small>{m.weakTopic ? `Weak area: ${m.weakTopic}` : "No weak topic flagged"}</small>
+          {mocks.map((m) => {
+            const isEditing = editingMockId === m.id;
+            return (
+              <div key={m.id} className="item-row-card">
+                {isEditing ? (
+                  <div style={{ display: "flex", gap: 6, width: "100%", flexWrap: "wrap", alignItems: "center" }}>
+                    <input className="field-input" style={{ flex: 1, minWidth: 100 }} value={mockDraft.name} onChange={(e) => setMockDraft({ ...mockDraft, name: e.target.value })} />
+                    <input className="field-input" style={{ width: 72 }} type="number" min="0" max="100" value={mockDraft.score} onChange={(e) => setMockDraft({ ...mockDraft, score: e.target.value })} />
+                    <input className="field-input" style={{ flex: 1, minWidth: 110 }} placeholder="Weak topic" value={mockDraft.weakTopic} onChange={(e) => setMockDraft({ ...mockDraft, weakTopic: e.target.value })} />
+                    <button type="button" className="btn-primary" style={{ height: 34, padding: "0 10px" }} onClick={() => saveEditMock(m.id)}><Check size={14} /></button>
+                    <IconButton label="Cancel" onClick={() => setEditingMockId(null)}><X size={14} /></IconButton>
+                  </div>
+                ) : (
+                  <>
+                    <div className="item-row-main">
+                      <strong>{m.name}</strong>
+                      <small>{m.weakTopic ? `Weak area: ${m.weakTopic}` : "No weak topic flagged"}</small>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className={"badge-pill " + (m.score < 60 ? "badge-weak" : "badge-good")}>{m.score}%</span>
+                      <IconButton label="Edit mock" onClick={() => { setEditingMockId(m.id); setMockDraft({ name: m.name, score: m.score, weakTopic: m.weakTopic || "" }); }}><Pencil size={14} /></IconButton>
+                      <IconButton label="Delete mock" onClick={() => deleteMock(m.id)}><Trash2 size={14} /></IconButton>
+                    </div>
+                  </>
+                )}
               </div>
-              <span className={"badge-pill " + (m.score < 60 ? "badge-weak" : "badge-good")}>{m.score}%</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -1856,10 +2085,10 @@ function MarketingPage({ onStart, onSignIn, onGoogleSignIn, onDemo, isDark, onTo
               <div className="preview-content">
                 <div className="preview-sidebar">
                   <div className="preview-logo"><Sparkles size={14} /> cadence.</div>
-                  <div className="preview-nav-active"><CalendarDays size={13} /> Calendar</div>
-                  <div><LayoutDashboard size={13} /> Dashboard</div>
+                  <div className="preview-nav-active"><Timer size={13} /> Focus Timer</div>
                   <div><BookOpen size={13} /> Subjects</div>
-                  <div><Timer size={13} /> Timer</div>
+                  <div><GraduationCap size={13} /> Exam Prep</div>
+                  <div><CalendarDays size={13} /> Calendar</div>
                 </div>
                 <div className="preview-main">
                   <div className="preview-calendar">
@@ -1951,7 +2180,7 @@ export default function App() {
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [view, setView] = useState("month");
+  const [view, setView] = useState("timer");
   const [modal, setModal] = useState(null);
   const [pendingDeleteTask, setPendingDeleteTask] = useState(null);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -2450,11 +2679,11 @@ export default function App() {
   const displayFirstName = authUser?.displayName?.trim()?.split(" ")[0];
 
   const navItems = [
-    { id: "month", label: "Calendar", icon: <CalendarDays size={18} />, count: tasks.length },
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+    { id: "timer", label: "Focus Timer", icon: <Timer size={18} /> },
     { id: "subjects", label: "Subjects", icon: <BookOpen size={18} /> },
     { id: "exams", label: "Exam Prep", icon: <GraduationCap size={18} /> },
-    { id: "timer", label: "Focus Timer", icon: <Timer size={18} /> },
+    { id: "month", label: "Calendar", icon: <CalendarDays size={18} />, count: tasks.length },
+    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
   ];
 
   return (
@@ -2466,8 +2695,11 @@ export default function App() {
             <div className="brand-icon"><Sparkles size={19} strokeWidth={2.4} /></div>
             <span className="brand-text">cadence<span className="brand-period">.</span></span>
           </div>
-          <IconButton label="Close menu" className="sidebar-close" onClick={() => setMobileNav(false)}>
-            <X size={18} />
+          <IconButton
+            label="Close sidebar"
+            onClick={() => { setSidebarCollapsed(true); setMobileNav(false); }}
+          >
+            <PanelLeftClose size={17} />
           </IconButton>
         </div>
 
